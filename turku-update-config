@@ -47,9 +47,8 @@ def check_directories():
     for d in (CONFIG_D, SOURCES_D):
         if not os.path.isdir(d):
             os.makedirs(d)
-    for d in (SOURCES_SECRETS_D):
+    for d in (SOURCES_SECRETS_D,):
         if not os.path.isdir(d):
-            print(d)
             os.makedirs(d)
             os.chmod(d, 0o700)
     for f in (SSH_PRIVATE_KEY, SSH_PUBLIC_KEY, RSYNCD_CONF, RSYNCD_SECRETS):
