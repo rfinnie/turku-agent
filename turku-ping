@@ -1,0 +1,72 @@
+#!/usr/bin/python
+
+from __future__ import print_function
+import os
+import json
+import random
+import subprocess
+import sys
+import tempfile
+import time
+
+SSH_PRIVATE_KEY = '/etc/turku-agent/id_rsa'
+VAR_DIR = '/var/lib/turku-agent'
+
+
+def parse_args():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--wait', '-w', type=float)
+    return parser.parse_args()
+
+
+def main(argv):
+    # Basic checks
+    if not os.path.isfile(SSH_PRIVATE_KEY):
+        return
+    if not os.path.isfile(os.path.join(VAR_DIR, 'server_config.json')):
+        return
+    with open(os.path.join(VAR_DIR, 'server_config.json')) as f:
+        server_config = json.load(f)
+    for i in ('ssh_ping_host', 'ssh_ping_host_key', 'ssh_ping_port', 'ssh_ping_user'):
+        if not i in server_config:
+            return
+
+    args = parse_args()
+    # Sleep a random amount of time if requested
+    if args.wait:
+        time.sleep(random.uniform(0, args.wait))
+
+    # Write the server host public key
+    t = tempfile.NamedTemporaryFile()
+    t.write('%s\n' % server_config['ssh_ping_host_key'])
+
+    # Use a high port for the remote end
+    high_port = random.randint(49152, 65535)
+
+    # Call ssh
+    p = subprocess.Popen([
+        'ssh', '-T',
+        '-o', 'UserKnownHostsFile=%s' % t.name,
+        '-o', 'StrictHostKeyChecking=yes',
+        '-i', SSH_PRIVATE_KEY,
+        '-R', '%s:127.0.0.1:27873' % high_port,
+        '-p', str(server_config['ssh_ping_port']),
+        '-l', server_config['ssh_ping_user'],
+        server_config['ssh_ping_host']
+    ], stdin=subprocess.PIPE)
+
+    # Let the server know the high port
+    p.stdin.write(str(high_port) + '\n')
+
+    # Wait for the server to close the SSH connection
+    p.wait()
+
+    # Cleanup
+    t.close()
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
