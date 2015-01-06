@@ -1,0 +1,54 @@
+#!/usr/bin/python
+
+import time
+import BaseHTTPServer
+import json
+
+HOST_NAME = '0.0.0.0'
+PORT_NUMBER = 80
+
+STUB_RESPONSE = {
+    "status": "ok",
+    "ssh_ping_host": "91.189.90.45",
+    "ssh_ping_host_key": "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr/hiHZEVqV2X6yhkL8nq80sLz1R52cSIYtzqqOmeUu0sS9u3zrBFIFH1CyDTlmmXG408/mdzpiqG1Nd2S2rLRZU/gfZ0N8TOKjCNB5pkC4DebS9vKtsBZzKfINyF00uB/rBz8a9DbrGyas7c2jHsp+C3qgWgnIlvBkjP+gNiZB5f/oPOKOt811jO4ARt6MAAUtiTQkmS9PvIS9//8WUXeTbtaSlsuZ71NzWf146RVuzHbd2TQc/kaKSjhWY7gayd8QlX2aYsaNKbog2RhgeHfypoXfHMZwGzl+F/3j2fA4FRh5FFyPQXTwI7n5cnWTNA+wja/yD/inhIVRmArK16dw== root@mirnyy",
+    "ssh_ping_port": "22",
+    "ssh_ping_user": "turku-ping"
+}
+
+class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+    def do_POST(s):
+        print s.headers
+        print s.rfile.read(int(s.headers['content-length']))
+        out = json.dumps(STUB_RESPONSE)
+        s.send_response(200)
+        s.send_header("Content-Type", "application/json")
+        s.send_header("Content-Length", len(out))
+        s.end_headers()
+        s.wfile.write(out)
+
+    def do_HEAD(s):
+        s.send_response(200)
+        s.send_header("Content-type", "text/html")
+        s.end_headers()
+
+    def do_GET(s):
+        """Respond to a GET request."""
+        s.send_response(200)
+        s.send_header("Content-type", "text/html")
+        s.end_headers()
+        s.wfile.write("<html><head><title>Title goes here.</title></head>")
+        s.wfile.write("<body><p>This is a test.</p>")
+        s.wfile.write("<p>You accessed path: %s</p>" % s.path)
+        s.wfile.write("</body></html>")
+
+if __name__ == '__main__':
+    server_class = BaseHTTPServer.HTTPServer
+    httpd = server_class((HOST_NAME, PORT_NUMBER), MyHandler)
+    print time.asctime(), "Server Starts - %s:%s" % (HOST_NAME, PORT_NUMBER)
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    httpd.server_close()
+    print time.asctime(), "Server Stops - %s:%s" % (HOST_NAME, PORT_NUMBER)
+
