@@ -18,6 +18,7 @@ SSH_PRIVATE_KEY = '/etc/turku-agent/id_rsa'
 SSH_PUBLIC_KEY = '/etc/turku-agent/id_rsa.pub'
 RSYNCD_CONF = '/etc/turku-agent/rsyncd.conf'
 RSYNCD_SECRETS = '/etc/turku-agent/rsyncd.secrets'
+VAR_DIR = '/var/lib/turku-agent'
 
 
 def json_dump_p(obj, f):
@@ -44,7 +45,7 @@ def dict_merge(s, m):
 
 
 def check_directories():
-    for d in (CONFIG_D, SOURCES_D):
+    for d in (CONFIG_D, SOURCES_D, VAR_DIR):
         if not os.path.isdir(d):
             os.makedirs(d)
     for d in (SOURCES_SECRETS_D,):
@@ -163,10 +164,49 @@ def restart_services():
         subprocess.check_call(['service', 'turku-agent-rsyncd', 'start'])
 
 
+def send_config(built_config):
+    if not 'api_url' in built_config:
+        return
+
+    import httplib
+    import urlparse
+
+    # Send the completed config to the API server
+    url = urlparse.urlparse(built_config['api_url'])
+    if url.scheme == 'https':
+        h = httplib.HTTPSConnection(url.netloc, timeout=5)
+    else:
+        h = httplib.HTTPConnection(url.netloc, timeout=5)
+    dumped_json = json.dumps(built_config)
+    h.putrequest('POST', '%s/update_config' % url.path)
+    h.putheader('Content-Type', 'application/json')
+    h.putheader('Content-Length', len(dumped_json))
+    h.putheader('Accept', 'application/json')
+    h.endheaders()
+    h.send(dumped_json)
+
+    # Read/validate the response
+    res = h.getresponse()
+    if not res.status == httplib.OK:
+        return
+    if not res.getheader('content-type') == 'application/json':
+        return
+    try:
+        server_config = json.load(res)
+    except ValueError:
+        return
+
+    # Write the response
+    with open(os.path.join(VAR_DIR, 'server_config.json'), 'w') as f:
+        os.chmod(os.path.join(VAR_DIR, 'server_config.json'), 0o600)
+        json_dump_p(server_config, f)
+
+
 def main(argv):
     check_directories()
     built_config = parse_config()
     write_conf_files(built_config)
+    send_config(built_config)
     restart_services()
 
 
