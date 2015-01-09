@@ -55,11 +55,16 @@ def main(argv):
         '-R', '%s:127.0.0.1:27873' % high_port,
         '-p', str(server_config['ssh_ping_port']),
         '-l', server_config['ssh_ping_user'],
-        server_config['ssh_ping_host']
+        server_config['ssh_ping_host'],
+        'turku-ping-remote',
     ], stdin=subprocess.PIPE)
 
+    out = {
+        'port': high_port,
+        'verbose': True,
+    }
     # Let the server know the high port
-    p.stdin.write(str(high_port) + '\n')
+    p.stdin.write(json.dumps(out) + '\n.\n')
 
     # Wait for the server to close the SSH connection
     p.wait()
