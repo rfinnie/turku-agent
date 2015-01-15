@@ -60,8 +60,11 @@ def check_directories():
 
 def parse_config():
     built_config = {
+        'machine': {},
         'sources': {}
     }
+
+    root_config = {}
 
     # Merge in config.d/*.json to the root level
     config_files = [os.path.join(CONFIG_D, fn) for fn in os.listdir(CONFIG_D) if fn.endswith('.json') and os.path.isfile(os.path.join(CONFIG_D, fn)) and os.access(os.path.join(CONFIG_D, fn), os.R_OK)]
@@ -69,27 +72,27 @@ def parse_config():
     for file in config_files:
         with open(file) as f:
             j = json.load(f)
-        built_config = dict_merge(built_config, j)
+        root_config = dict_merge(root_config, j)
 
     # Validate the unit name
-    if not 'unit_name' in built_config:
-        built_config['unit_name'] = platform.node()
+    if not 'unit_name' in root_config:
+        root_config['unit_name'] = platform.node()
         # If this isn't in the on-disk config, don't write it; just
         # generate it every time
 
     # Validate the machine UUID/secret
     write_uuid_data = False
-    if not 'machine_uuid' in built_config:
-        built_config['machine_uuid'] = str(uuid.uuid4())
+    if not 'machine_uuid' in root_config:
+        root_config['machine_uuid'] = str(uuid.uuid4())
         write_uuid_data = True
-    if not 'machine_secret' in built_config:
-        built_config['machine_secret'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
+    if not 'machine_secret' in root_config:
+        root_config['machine_secret'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
         write_uuid_data = True
     # Write out the machine UUID/secret if needed
     if write_uuid_data:
         with open(os.path.join(CONFIG_D, '10-machine_uuid.json'), 'w') as f:
             os.chmod(os.path.join(CONFIG_D, '10-machine_uuid.json'), 0o600)
-            json_dump_p({'machine_uuid': built_config['machine_uuid'], 'machine_secret': built_config['machine_secret']}, f)
+            json_dump_p({'machine_uuid': root_config['machine_uuid'], 'machine_secret': root_config['machine_secret']}, f)
 
     # Generate the SSH keypair if it doesn't exist
     if not os.path.isfile(SSH_PUBLIC_KEY):
@@ -97,7 +100,32 @@ def parse_config():
 
     # Pull the SSH public key
     with open(SSH_PUBLIC_KEY) as f:
-        built_config['ssh_public_key'] = f.read().rstrip()
+        root_config['ssh_public_key'] = f.read().rstrip()
+
+    # Merge the following options into the root
+    root_merge_map = (
+        ('api_auth', 'auth'),
+    )
+    root_merge = {}
+    for a, b in root_merge_map:
+        if a in root_config:
+            root_merge[b] = root_config[a]
+    built_config = dict_merge(built_config, root_merge)
+
+    # Merge the following options into the machine section
+    machine_merge_map = (
+        ('machine_uuid', 'uuid'),
+        ('machine_secret', 'secret'),
+        ('environment_name', 'environment_name'),
+        ('service_name', 'service_name'),
+        ('unit_name', 'unit_name'),
+        ('ssh_public_key', 'ssh_public_key'),
+    )
+    machine_merge = {}
+    for a, b in machine_merge_map:
+        if a in root_config:
+            machine_merge[b] = root_config[a]
+    built_config = dict_merge(built_config, {'machine': machine_merge})
 
     # Merge in sources.d/*.json to the sources dict
     sources_files = [os.path.join(SOURCES_D, fn) for fn in os.listdir(SOURCES_D) if fn.endswith('.json') and os.path.isfile(os.path.join(SOURCES_D, fn)) and os.access(os.path.join(SOURCES_D, fn), os.R_OK)]
