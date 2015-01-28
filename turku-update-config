@@ -10,6 +10,7 @@ import copy
 import subprocess
 import sys
 import platform
+import time
 
 CONFIG_D = '/etc/turku-agent/config.d'
 SOURCES_D = '/etc/turku-agent/sources.d'
@@ -44,6 +45,15 @@ def dict_merge(s, m):
     return out
 
 
+def parse_args():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--wait', '-w', type=float)
+    return parser.parse_args()
+
+
 def check_directories():
     for d in (CONFIG_D, SOURCES_D, VAR_DIR):
         if not os.path.isdir(d):
@@ -59,6 +69,7 @@ def check_directories():
 
 
 def parse_config():
+    api_config = {}
     built_config = {
         'machine': {},
         'sources': {}
@@ -101,6 +112,16 @@ def parse_config():
     # Pull the SSH public key
     with open(SSH_PUBLIC_KEY) as f:
         root_config['ssh_public_key'] = f.read().rstrip()
+
+    # Merge the following options into the api_config
+    api_merge_map = (
+        ('api_url', 'api_url'),
+    )
+    api_merge = {}
+    for a, b in api_merge_map:
+        if a in root_config:
+            api_merge[b] = root_config[a]
+    api_config = dict_merge(api_config, api_merge)
 
     # Merge the following options into the root
     root_merge_map = (
@@ -159,7 +180,7 @@ def parse_config():
 
     #print(json_dumps_p(built_config))
 
-    return(built_config)
+    return((built_config, api_config))
 
 
 def write_conf_files(built_config):
@@ -192,15 +213,15 @@ def restart_services():
         subprocess.check_call(['service', 'turku-agent-rsyncd', 'start'])
 
 
-def send_config(built_config):
-    if not 'api_url' in built_config:
+def send_config(built_config, api_config):
+    if not 'api_url' in api_config:
         return
 
     import httplib
     import urlparse
 
     # Send the completed config to the API server
-    url = urlparse.urlparse(built_config['api_url'])
+    url = urlparse.urlparse(api_config['api_url'])
     if url.scheme == 'https':
         h = httplib.HTTPSConnection(url.netloc, timeout=5)
     else:
@@ -231,10 +252,15 @@ def send_config(built_config):
 
 
 def main(argv):
+    args = parse_args()
+    # Sleep a random amount of time if requested
+    if args.wait:
+        time.sleep(random.uniform(0, args.wait))
+
     check_directories()
-    built_config = parse_config()
+    (built_config, api_config) = parse_config()
     write_conf_files(built_config)
-    send_config(built_config)
+    send_config(built_config, api_config)
     restart_services()
 
 
