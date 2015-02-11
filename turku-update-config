@@ -190,7 +190,7 @@ def write_conf_files(built_config):
     for s in built_config['sources']:
         sd = built_config['sources'][s]
         rsyncd_secrets.append((sd['username'], sd['password']))
-        built_rsyncd_conf += '[%s]\n    path = %s\n    auth users = %s\n    secrets_file = %s\n    read only = true\n\n' % (s, sd['path'], sd['username'], RSYNCD_SECRETS)
+        built_rsyncd_conf += '[%s]\n    path = %s\n    auth users = %s\n    secrets file = %s\n    read only = true\n\n' % (s, sd['path'], sd['username'], RSYNCD_SECRETS)
     with open(RSYNCD_CONF, 'w') as f:
         f.write(built_rsyncd_conf)
 

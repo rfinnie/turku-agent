@@ -8,9 +8,11 @@ import subprocess
 import sys
 import tempfile
 import time
+import fcntl
 
 SSH_PRIVATE_KEY = '/etc/turku-agent/id_rsa'
 VAR_DIR = '/var/lib/turku-agent'
+LOCK_FILE = '/var/lock/turku-agent.lock'
 
 
 def parse_args():
@@ -30,8 +32,16 @@ def main(argv):
         return
     with open(os.path.join(VAR_DIR, 'server_config.json')) as f:
         server_config = json.load(f)
-    for i in ('ssh_ping_host', 'ssh_ping_host_key', 'ssh_ping_port', 'ssh_ping_user'):
+    for i in ('ssh_ping_host', 'ssh_ping_host_keys', 'ssh_ping_port', 'ssh_ping_user'):
         if not i in server_config:
+            return
+
+    lock = open(LOCK_FILE, 'w')
+    try:
+        fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError, e:
+        import errno
+        if e.errno in (errno.EACCES, errno.EAGAIN):
             return
 
     args = parse_args()
@@ -41,7 +51,9 @@ def main(argv):
 
     # Write the server host public key
     t = tempfile.NamedTemporaryFile()
-    t.write('%s\n' % server_config['ssh_ping_host_key'])
+    for key in server_config['ssh_ping_host_keys']:
+        t.write('%s %s\n' % (server_config['ssh_ping_host'], key))
+    t.flush()
 
     # Use a high port for the remote end
     high_port = random.randint(49152, 65535)
