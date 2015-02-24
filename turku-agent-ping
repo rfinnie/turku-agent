@@ -13,6 +13,7 @@ import fcntl
 SSH_PRIVATE_KEY = '/etc/turku-agent/id_rsa'
 VAR_DIR = '/var/lib/turku-agent'
 LOCK_FILE = '/var/lock/turku-agent.lock'
+RESTORE_CONFIG = '/etc/turku-agent/config.d/10-restore.json'
 
 
 def parse_args():
@@ -21,6 +22,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--wait', '-w', type=float)
+    parser.add_argument('--restore', action='store_true')
     return parser.parse_args()
 
 
@@ -36,6 +38,11 @@ def main(argv):
         if not i in server_config:
             return
 
+    args = parse_args()
+    # Sleep a random amount of time if requested
+    if args.wait:
+        time.sleep(random.uniform(0, args.wait))
+
     lock = open(LOCK_FILE, 'w')
     try:
         fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -43,11 +50,6 @@ def main(argv):
         import errno
         if e.errno in (errno.EACCES, errno.EAGAIN):
             return
-
-    args = parse_args()
-    # Sleep a random amount of time if requested
-    if args.wait:
-        time.sleep(random.uniform(0, args.wait))
 
     # Write the server host public key
     t = tempfile.NamedTemporaryFile()
@@ -57,6 +59,22 @@ def main(argv):
 
     # Use a high port for the remote end
     high_port = random.randint(49152, 65535)
+
+    # Restore mode
+    restore_mode = False
+    if args.restore:
+        restore_mode = True
+        print('Entering restore mode.')
+        print()
+        if 'storage_name' in server_config:
+            print('Storage unit: %s' % server_config['storage_name'])
+        if os.path.isfile(RESTORE_CONFIG):
+            with open(RESTORE_CONFIG) as f:
+                restore_config = json.load(f)
+            print('Local destination path: %s' % restore_config['restore_path'])
+            print('Sample restore usage from storage unit:')
+            print('    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids $P/ rsync://%s@127.0.0.1:%s/%s/' % (restore_config['restore_password'], restore_config['restore_username'], high_port, restore_config['restore_module']))
+            print()
 
     # Call ssh
     p = subprocess.Popen([
@@ -72,9 +90,12 @@ def main(argv):
     ], stdin=subprocess.PIPE)
 
     out = {
+        'action': 'checkin',
         'port': high_port,
         'verbose': True,
     }
+    if restore_mode:
+        out['action'] = 'restore'
     # Let the server know the high port
     p.stdin.write(json.dumps(out) + '\n.\n')
 

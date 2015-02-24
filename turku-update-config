@@ -20,6 +20,7 @@ SSH_PUBLIC_KEY = '/etc/turku-agent/id_rsa.pub'
 RSYNCD_CONF = '/etc/turku-agent/rsyncd.conf'
 RSYNCD_SECRETS = '/etc/turku-agent/rsyncd.secrets'
 VAR_DIR = '/var/lib/turku-agent'
+RESTORE_DIR = '/var/backups/turku-agent/restore'
 
 
 def json_dump_p(obj, f):
@@ -105,6 +106,33 @@ def parse_config():
             os.chmod(os.path.join(CONFIG_D, '10-machine_uuid.json'), 0o600)
             json_dump_p({'machine_uuid': root_config['machine_uuid'], 'machine_secret': root_config['machine_secret']}, f)
 
+    # Restoration configuration
+    write_restore_data = False
+    if not 'restore_path' in root_config:
+        root_config['restore_path'] = RESTORE_DIR
+        write_restore_data = True
+    if not 'restore_module' in root_config:
+        root_config['restore_module'] = 'turku-restore'
+        write_restore_data = True
+    if not 'restore_username' in root_config:
+        root_config['restore_username'] = str(uuid.uuid4())
+        write_restore_data = True
+    if not 'restore_password' in root_config:
+        root_config['restore_password'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
+        write_restore_data = True
+    if write_restore_data:
+        with open(os.path.join(CONFIG_D, '10-restore.json'), 'w') as f:
+            os.chmod(os.path.join(CONFIG_D, '10-restore.json'), 0o600)
+            restore_out = {
+                'restore_path': root_config['restore_path'],
+                'restore_module': root_config['restore_module'],
+                'restore_username': root_config['restore_username'],
+                'restore_password': root_config['restore_password'],
+            }
+            json_dump_p(restore_out, f)
+    if not os.path.isdir(root_config['restore_path']):
+        os.makedirs(root_config['restore_path'])
+
     # Generate the SSH keypair if it doesn't exist
     if not os.path.isfile(SSH_PUBLIC_KEY):
         subprocess.check_call(['ssh-keygen', '-t', 'rsa', '-N', '', '-C', 'turku', '-f', SSH_PRIVATE_KEY])
@@ -180,6 +208,13 @@ def parse_config():
 
     #print(json_dumps_p(built_config))
 
+    built_config['restore'] = {
+        'path': root_config['restore_path'],
+        'module': root_config['restore_module'],
+        'username': root_config['restore_username'],
+        'password': root_config['restore_password'],
+    }
+
     return((built_config, api_config))
 
 
@@ -187,6 +222,8 @@ def write_conf_files(built_config):
     # Build rsyncd.conf
     built_rsyncd_conf = 'address = 127.0.0.1\nport = 27873\nlog file = /dev/stdout\nuid = root\ngid = root\nlist = false\n\n'
     rsyncd_secrets = []
+    rsyncd_secrets.append((built_config['restore']['username'], built_config['restore']['password']))
+    built_rsyncd_conf += '[%s]\n    path = %s\n    auth users = %s\n    secrets file = %s\n    read only = false\n\n' % (built_config['restore']['module'], built_config['restore']['path'], built_config['restore']['username'], RSYNCD_SECRETS)
     for s in built_config['sources']:
         sd = built_config['sources'][s]
         rsyncd_secrets.append((sd['username'], sd['password']))
