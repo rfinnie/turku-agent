@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function
 import uuid
 import string
 import random
@@ -148,11 +147,6 @@ def load_config():
     for file in sources_files:
         with open(file) as f:
             j = json.load(f)
-        for s in j.keys():
-            # Ignore incomplete source entries
-            if not 'path' in j[s]:
-                print('WARNING: Path not found for "%s", not using.' % s, file=sys.stderr)
-                del j[s]
         sources_config = dict_merge(sources_config, j)
 
     for s in sources_config:
@@ -171,6 +165,11 @@ def load_config():
                 sources_config[s]['password'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
             with open(os.path.join(SOURCES_SECRETS_D, s + '.json'), 'w') as f:
                 json_dump_p({'username': sources_config[s]['username'], 'password': sources_config[s]['password']}, f)
+
+    # Check for required sources options
+    for s in sources_config:
+        if not 'path' in sources_config[s]:
+            del sources_config[s]
 
     root_config['sources'] = sources_config
 
