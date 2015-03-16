@@ -24,6 +24,7 @@ import tempfile
 import time
 from utils import load_config, acquire_lock
 
+
 def parse_args():
     import argparse
 
@@ -52,7 +53,7 @@ def main(argv):
     with open(os.path.join(config['var_dir'], 'server_config.json')) as f:
         server_config = json.load(f)
     for i in ('ssh_ping_host', 'ssh_ping_host_keys', 'ssh_ping_port', 'ssh_ping_user'):
-        if not i in server_config:
+        if i not in server_config:
             return
 
     lock = acquire_lock(os.path.join(config['lock_dir'], 'turku-agent-ping.lock'))

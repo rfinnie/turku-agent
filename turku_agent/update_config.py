@@ -61,7 +61,7 @@ def restart_services():
 
 
 def send_config(config):
-    if not 'api_url' in config:
+    if 'api_url' not in config:
         return
 
     api_out = {}
@@ -93,7 +93,7 @@ def send_config(config):
     try:
         api_reply = api_call(config['api_url'], 'update_config', api_out)
     except:
-        #pass
+        # pass
         raise
 
     # Write the response

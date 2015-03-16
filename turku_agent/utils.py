@@ -136,17 +136,17 @@ def load_config(config_dir, writable=False):
         os.makedirs(var_sources_d)
 
     # Validate the unit name
-    if not 'unit_name' in config:
+    if 'unit_name' not in config:
         config['unit_name'] = platform.node()
         # If this isn't in the on-disk config, don't write it; just
         # generate it every time
 
     # Validate the machine UUID/secret
     write_uuid_data = False
-    if not 'machine_uuid' in config:
+    if 'machine_uuid' not in config:
         config['machine_uuid'] = str(uuid.uuid4())
         write_uuid_data = True
-    if not 'machine_secret' in config:
+    if 'machine_secret' not in config:
         config['machine_secret'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
         write_uuid_data = True
     # Write out the machine UUID/secret if needed
@@ -157,16 +157,16 @@ def load_config(config_dir, writable=False):
 
     # Restoration configuration
     write_restore_data = False
-    if not 'restore_path' in config:
+    if 'restore_path' not in config:
         config['restore_path'] = '/var/backups/turku-agent/restore'
         write_restore_data = True
-    if not 'restore_module' in config:
+    if 'restore_module' not in config:
         config['restore_module'] = 'turku-restore'
         write_restore_data = True
-    if not 'restore_username' in config:
+    if 'restore_username' not in config:
         config['restore_username'] = str(uuid.uuid4())
         write_restore_data = True
-    if not 'restore_password' in config:
+    if 'restore_password' not in config:
         config['restore_password'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
         write_restore_data = True
     if write_restore_data:
@@ -225,9 +225,9 @@ def load_config(config_dir, writable=False):
                 sources_config = dict_merge(sources_config, {s: j})
         # Check again and generate secrets if still not found
         if not ('username' in sources_config[s] or 'password' in sources_config[s]):
-            if not 'username' in sources_config[s]:
+            if 'username' not in sources_config[s]:
                 sources_config[s]['username'] = str(uuid.uuid4())
-            if not 'password' in sources_config[s]:
+            if 'password' not in sources_config[s]:
                 sources_config[s]['password'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
             with open(os.path.join(var_sources_d, '10-' + s + '.json'), 'w') as f:
                 os.fchmod(f.fileno(), 0o600)
@@ -235,7 +235,7 @@ def load_config(config_dir, writable=False):
 
     # Check for required sources options
     for s in sources_config:
-        if not 'path' in sources_config[s]:
+        if 'path' not in sources_config[s]:
             del sources_config[s]
 
     config['sources'] = sources_config
