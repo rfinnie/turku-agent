@@ -23,5 +23,6 @@ setup(
     author='Ryan Finnie',
     author_email='ryan.finnie@canonical.com',
     url='https://launchpad.net/turku',
+    packages=['turku_agent'],
     scripts=['turku-agent-ping', 'turku-update-config'],
 )
