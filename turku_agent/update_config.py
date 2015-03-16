@@ -20,7 +20,7 @@ import os
 import subprocess
 import time
 import logging
-from utils import json_dump_p, load_config, fill_config, acquire_lock, api_call
+from utils import json_dump_p, json_dumps_p, load_config, fill_config, acquire_lock, api_call
 
 
 class IncompleteConfigError(Exception):
@@ -34,6 +34,7 @@ def parse_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--config-dir', '-c', type=str, default='/etc/turku-agent')
     parser.add_argument('--wait', '-w', type=float)
+    parser.add_argument('--debug', action='store_true')
     return parser.parse_args()
 
 
@@ -117,10 +118,14 @@ def main(argv):
     config = load_config(args.config_dir)
     lock = acquire_lock(os.path.join(config['lock_dir'], 'turku-update-config.lock'))
     fill_config(config)
+    if args.debug:
+        print json_dumps_p(config)
     write_conf_files(config)
     try:
         send_config(config)
     except Exception, e:
+        if args.debug:
+            raise
         logging.exception(e)
         return
     restart_services()
