@@ -18,20 +18,8 @@
 import random
 import os
 import subprocess
-import sys
 import time
-from utils import json_dump_p, load_config, api_call
-
-
-CONFIG_D = '/etc/turku-agent/config.d'
-SOURCES_D = '/etc/turku-agent/sources.d'
-SOURCES_SECRETS_D = '/etc/turku-agent/sources_secrets.d'
-SSH_PRIVATE_KEY = '/etc/turku-agent/id_rsa'
-SSH_PUBLIC_KEY = '/etc/turku-agent/id_rsa.pub'
-RSYNCD_CONF = '/etc/turku-agent/rsyncd.conf'
-RSYNCD_SECRETS = '/etc/turku-agent/rsyncd.secrets'
-VAR_DIR = '/var/lib/turku-agent'
-RESTORE_DIR = '/var/backups/turku-agent/restore'
+from utils import json_dump_p, load_config, acquire_lock, api_call
 
 
 def parse_args():
@@ -39,6 +27,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--config-dir', '-c', type=str, default='/etc/turku-agent')
     parser.add_argument('--wait', '-w', type=float)
     return parser.parse_args()
 
@@ -48,20 +37,20 @@ def write_conf_files(config):
     built_rsyncd_conf = 'address = 127.0.0.1\nport = 27873\nlog file = /dev/stdout\nuid = root\ngid = root\nlist = false\n\n'
     rsyncd_secrets = []
     rsyncd_secrets.append((config['restore_username'], config['restore_password']))
-    built_rsyncd_conf += '[%s]\n    path = %s\n    auth users = %s\n    secrets file = %s\n    read only = false\n\n' % (config['restore_module'], config['restore_path'], config['restore_username'], RSYNCD_SECRETS)
+    built_rsyncd_conf += '[%s]\n    path = %s\n    auth users = %s\n    secrets file = %s\n    read only = false\n\n' % (config['restore_module'], config['restore_path'], config['restore_username'], os.path.join(config['var_dir'], 'rsyncd.secrets'))
     for s in config['sources']:
         sd = config['sources'][s]
         rsyncd_secrets.append((sd['username'], sd['password']))
-        built_rsyncd_conf += '[%s]\n    path = %s\n    auth users = %s\n    secrets file = %s\n    read only = true\n\n' % (s, sd['path'], sd['username'], RSYNCD_SECRETS)
-    with open(RSYNCD_CONF, 'w') as f:
+        built_rsyncd_conf += '[%s]\n    path = %s\n    auth users = %s\n    secrets file = %s\n    read only = true\n\n' % (s, sd['path'], sd['username'], os.path.join(config['var_dir'], 'rsyncd.secrets'))
+    with open(os.path.join(config['var_dir'], 'rsyncd.conf'), 'w') as f:
         f.write(built_rsyncd_conf)
 
     # Build rsyncd.secrets
     built_rsyncd_secrets = ''
     for (username, password) in rsyncd_secrets:
         built_rsyncd_secrets += username + ':' + password + '\n'
-    with open(RSYNCD_SECRETS, 'w') as f:
-        os.chmod(RSYNCD_SECRETS, 0o600)
+    with open(os.path.join(config['var_dir'], 'rsyncd.secrets'), 'w') as f:
+        os.chmod(os.path.join(config['var_dir'], 'rsyncd.secrets'), 0o600)
         f.write(built_rsyncd_secrets)
 
 
@@ -108,8 +97,8 @@ def send_config(config):
         raise
 
     # Write the response
-    with open(os.path.join(VAR_DIR, 'server_config.json'), 'w') as f:
-        os.chmod(os.path.join(VAR_DIR, 'server_config.json'), 0o600)
+    with open(os.path.join(config['var_dir'], 'server_config.json'), 'w') as f:
+        os.chmod(os.path.join(config['var_dir'], 'server_config.json'), 0o600)
         json_dump_p(api_reply, f)
 
 
@@ -119,7 +108,9 @@ def main(argv):
     if args.wait:
         time.sleep(random.uniform(0, args.wait))
 
-    config = load_config()
+    config = load_config(args.config_dir, writable=True)
+    lock = acquire_lock(os.path.join(config['lock_dir'], 'turku-update-config.lock'))
     write_conf_files(config)
     send_config(config)
     restart_services()
+    lock.close()

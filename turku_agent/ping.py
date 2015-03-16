@@ -20,51 +20,42 @@ import os
 import json
 import random
 import subprocess
-import sys
 import tempfile
 import time
-import fcntl
-
-SSH_PRIVATE_KEY = '/etc/turku-agent/id_rsa'
-VAR_DIR = '/var/lib/turku-agent'
-LOCK_FILE = '/var/lock/turku-agent.lock'
-RESTORE_CONFIG = '/etc/turku-agent/config.d/10-restore.json'
-
+from utils import load_config, acquire_lock
 
 def parse_args():
     import argparse
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--config-dir', '-c', type=str, default='/etc/turku-agent')
     parser.add_argument('--wait', '-w', type=float)
     parser.add_argument('--restore', action='store_true')
     return parser.parse_args()
 
 
 def main(argv):
+    args = parse_args()
+
+    # Sleep a random amount of time if requested
+    if args.wait:
+        time.sleep(random.uniform(0, args.wait))
+
+    config = load_config(args.config_dir, writable=False)
+
     # Basic checks
-    if not os.path.isfile(SSH_PRIVATE_KEY):
+    if not os.path.isfile(config['ssh_private_key_file']):
         return
-    if not os.path.isfile(os.path.join(VAR_DIR, 'server_config.json')):
+    if not os.path.isfile(os.path.join(config['var_dir'], 'server_config.json')):
         return
-    with open(os.path.join(VAR_DIR, 'server_config.json')) as f:
+    with open(os.path.join(config['var_dir'], 'server_config.json')) as f:
         server_config = json.load(f)
     for i in ('ssh_ping_host', 'ssh_ping_host_keys', 'ssh_ping_port', 'ssh_ping_user'):
         if not i in server_config:
             return
 
-    args = parse_args()
-    # Sleep a random amount of time if requested
-    if args.wait:
-        time.sleep(random.uniform(0, args.wait))
-
-    lock = open(LOCK_FILE, 'w')
-    try:
-        fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except IOError, e:
-        import errno
-        if e.errno in (errno.EACCES, errno.EAGAIN):
-            return
+    lock = acquire_lock(os.path.join(config['lock_dir'], 'turku-agent-ping.lock'))
 
     # Write the server host public key
     t = tempfile.NamedTemporaryFile()
@@ -83,12 +74,10 @@ def main(argv):
         print()
         if 'storage_name' in server_config:
             print('Storage unit: %s' % server_config['storage_name'])
-        if os.path.isfile(RESTORE_CONFIG):
-            with open(RESTORE_CONFIG) as f:
-                restore_config = json.load(f)
-            print('Local destination path: %s' % restore_config['restore_path'])
+        if 'restore_path' in config:
+            print('Local destination path: %s' % config['restore_path'])
             print('Sample restore usage from storage unit:')
-            print('    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids ${P?}/ rsync://%s@127.0.0.1:%s/%s/' % (restore_config['restore_password'], restore_config['restore_username'], high_port, restore_config['restore_module']))
+            print('    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids ${P?}/ rsync://%s@127.0.0.1:%s/%s/' % (config['restore_password'], config['restore_username'], high_port, config['restore_module']))
             print()
 
     # Call ssh
@@ -96,7 +85,7 @@ def main(argv):
         'ssh', '-T',
         '-o', 'UserKnownHostsFile=%s' % t.name,
         '-o', 'StrictHostKeyChecking=yes',
-        '-i', SSH_PRIVATE_KEY,
+        '-i', config['ssh_private_key_file'],
         '-R', '%s:127.0.0.1:27873' % high_port,
         '-p', str(server_config['ssh_ping_port']),
         '-l', server_config['ssh_ping_user'],
@@ -119,3 +108,4 @@ def main(argv):
 
     # Cleanup
     t.close()
+    lock.close()
