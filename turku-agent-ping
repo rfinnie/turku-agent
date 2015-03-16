@@ -88,7 +88,7 @@ def main(argv):
                 restore_config = json.load(f)
             print('Local destination path: %s' % restore_config['restore_path'])
             print('Sample restore usage from storage unit:')
-            print('    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids $P/ rsync://%s@127.0.0.1:%s/%s/' % (restore_config['restore_password'], restore_config['restore_username'], high_port, restore_config['restore_module']))
+            print('    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids ${P?}/ rsync://%s@127.0.0.1:%s/%s/' % (restore_config['restore_password'], restore_config['restore_username'], high_port, restore_config['restore_module']))
             print()
 
     # Call ssh
