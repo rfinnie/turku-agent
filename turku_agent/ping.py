@@ -43,9 +43,12 @@ def main(argv):
     if args.wait:
         time.sleep(random.uniform(0, args.wait))
 
-    config = load_config(args.config_dir, writable=False)
+    config = load_config(args.config_dir)
 
     # Basic checks
+    for i in ('ssh_private_key_file',):
+        if i not in config:
+            return
     if not os.path.isfile(config['ssh_private_key_file']):
         return
     if not os.path.isfile(os.path.join(config['var_dir'], 'server_config.json')):

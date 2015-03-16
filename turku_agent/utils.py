@@ -92,17 +92,17 @@ def dict_merge(s, m):
     return out
 
 
-def load_config(config_dir, writable=False):
-    config_d = os.path.join(config_dir, 'config.d')
-    sources_d = os.path.join(config_dir, 'sources.d')
-
+def load_config(config_dir):
     config = {}
+    config['config_dir'] = config_dir
+
+    config_d = os.path.join(config['config_dir'], 'config.d')
+    sources_d = os.path.join(config['config_dir'], 'sources.d')
 
     # Merge in config.d/*.json to the root level
-    for d in (config_d, sources_d):
-        if not os.path.isdir(d):
-            os.makedirs(d)
-    config_files = [os.path.join(config_d, fn) for fn in os.listdir(config_d) if fn.endswith('.json') and os.path.isfile(os.path.join(config_d, fn)) and os.access(os.path.join(config_d, fn), os.R_OK)]
+    config_files = []
+    if os.path.isdir(config_d):
+        config_files = [os.path.join(config_d, fn) for fn in os.listdir(config_d) if fn.endswith('.json') and os.path.isfile(os.path.join(config_d, fn)) and os.access(os.path.join(config_d, fn), os.R_OK)]
     config_files.sort()
     for file in config_files:
         with open(file) as f:
@@ -113,12 +113,12 @@ def load_config(config_dir, writable=False):
         config['var_dir'] = '/var/lib/turku-agent'
 
     var_config_d = os.path.join(config['var_dir'], 'config.d')
-    if not os.path.isdir(var_config_d):
-        os.makedirs(var_config_d)
 
     # Load /var config.d files
     var_config = {}
-    var_config_files = [os.path.join(var_config_d, fn) for fn in os.listdir(var_config_d) if fn.endswith('.json') and os.path.isfile(os.path.join(var_config_d, fn)) and os.access(os.path.join(var_config_d, fn), os.R_OK)]
+    var_config_files = []
+    if os.path.isdir(var_config_d):
+        var_config_files = [os.path.join(var_config_d, fn) for fn in os.listdir(var_config_d) if fn.endswith('.json') and os.path.isfile(os.path.join(var_config_d, fn)) and os.access(os.path.join(var_config_d, fn), os.R_OK)]
     var_config_files.sort()
     for file in var_config_files:
         with open(file) as f:
@@ -132,14 +132,62 @@ def load_config(config_dir, writable=False):
         config['lock_dir'] = '/var/lock'
 
     var_sources_d = os.path.join(config['var_dir'], 'sources.d')
-    if not os.path.isdir(var_sources_d):
-        os.makedirs(var_sources_d)
 
     # Validate the unit name
     if 'unit_name' not in config:
         config['unit_name'] = platform.node()
         # If this isn't in the on-disk config, don't write it; just
         # generate it every time
+
+    # Pull the SSH public key
+    if os.path.isfile(os.path.join(config['var_dir'], 'ssh_key.pub')):
+        with open(os.path.join(config['var_dir'], 'ssh_key.pub')) as f:
+            config['ssh_public_key'] = f.read().rstrip()
+        config['ssh_public_key_file'] = os.path.join(config['var_dir'], 'ssh_key.pub')
+        config['ssh_private_key_file'] = os.path.join(config['var_dir'], 'ssh_key')
+    elif os.path.isfile(os.path.join(config['config_dir'], 'id_rsa.pub')):
+        # XXX Legacy
+        with open(os.path.join(config['config_dir'], 'id_rsa.pub')) as f:
+            config['ssh_public_key'] = f.read().rstrip()
+        config['ssh_public_key_file'] = os.path.join(config['config_dir'], 'id_rsa.pub')
+        config['ssh_private_key_file'] = os.path.join(config['config_dir'], 'id_rsa')
+
+    sources_config = {}
+    # Merge in sources.d/*.json to the sources dict
+    sources_files = []
+    if os.path.isdir(sources_d):
+        sources_files = [os.path.join(sources_d, fn) for fn in os.listdir(sources_d) if fn.endswith('.json') and os.path.isfile(os.path.join(sources_d, fn)) and os.access(os.path.join(sources_d, fn), os.R_OK)]
+    sources_files.sort()
+    var_sources_files = []
+    if os.path.isdir(var_sources_d):
+        var_sources_files = [os.path.join(var_sources_d, fn) for fn in os.listdir(var_sources_d) if fn.endswith('.json') and os.path.isfile(os.path.join(var_sources_d, fn)) and os.access(os.path.join(var_sources_d, fn), os.R_OK)]
+    var_sources_files.sort()
+    sources_files += var_sources_files
+    for file in sources_files:
+        with open(file) as f:
+            j = json.load(f)
+        sources_config = dict_merge(sources_config, j)
+
+    # Check for required sources options
+    for s in sources_config:
+        if 'path' not in sources_config[s]:
+            del sources_config[s]
+
+    config['sources'] = sources_config
+
+    return config
+
+
+def fill_config(config):
+    config_d = os.path.join(config['config_dir'], 'config.d')
+    sources_d = os.path.join(config['config_dir'], 'sources.d')
+    var_config_d = os.path.join(config['var_dir'], 'config.d')
+    var_sources_d = os.path.join(config['var_dir'], 'sources.d')
+
+    # Create required directories
+    for d in (config_d, sources_d, var_config_d, var_sources_d):
+        if not os.path.isdir(d):
+            os.makedirs(d)
 
     # Validate the machine UUID/secret
     write_uuid_data = False
@@ -182,65 +230,32 @@ def load_config(config_dir, writable=False):
     if not os.path.isdir(config['restore_path']):
         os.makedirs(config['restore_path'])
 
-    # Pull the SSH public key
     # Generate the SSH keypair if it doesn't exist
-    if os.path.isfile(os.path.join(config['var_dir'], 'ssh_key.pub')):
-        with open(os.path.join(config['var_dir'], 'ssh_key.pub')) as f:
-            config['ssh_public_key'] = f.read().rstrip()
-        config['ssh_public_key_file'] = os.path.join(config['var_dir'], 'ssh_key.pub')
-        config['ssh_private_key_file'] = os.path.join(config['var_dir'], 'ssh_key')
-    elif os.path.isfile(os.path.join(config_dir, 'id_rsa.pub')):
-        # XXX Legacy
-        with open(os.path.join(config_dir, 'id_rsa.pub')) as f:
-            config['ssh_public_key'] = f.read().rstrip()
-        config['ssh_public_key_file'] = os.path.join(config_dir, 'id_rsa.pub')
-        config['ssh_private_key_file'] = os.path.join(config_dir, 'id_rsa')
-    else:
+    if 'ssh_private_key_file' not in config:
         subprocess.check_call(['ssh-keygen', '-t', 'rsa', '-N', '', '-C', 'turku', '-f', os.path.join(config['var_dir'], 'ssh_key')])
         with open(os.path.join(config['var_dir'], 'ssh_key.pub')) as f:
             config['ssh_public_key'] = f.read().rstrip()
         config['ssh_public_key_file'] = os.path.join(config['var_dir'], 'ssh_key.pub')
         config['ssh_private_key_file'] = os.path.join(config['var_dir'], 'ssh_key')
 
-    sources_config = {}
-    # Merge in sources.d/*.json to the sources dict
-    sources_files = [os.path.join(sources_d, fn) for fn in os.listdir(sources_d) if fn.endswith('.json') and os.path.isfile(os.path.join(sources_d, fn)) and os.access(os.path.join(sources_d, fn), os.R_OK)]
-    sources_files.sort()
-    var_sources_files = [os.path.join(var_sources_d, fn) for fn in os.listdir(var_sources_d) if fn.endswith('.json') and os.path.isfile(os.path.join(var_sources_d, fn)) and os.access(os.path.join(var_sources_d, fn), os.R_OK)]
-    var_sources_files.sort()
-    sources_files += var_sources_files
-    for file in sources_files:
-        with open(file) as f:
-            j = json.load(f)
-        sources_config = dict_merge(sources_config, j)
-
-    for s in sources_config:
+    for s in config['sources']:
         # Check for missing usernames/passwords
-        if not ('username' in sources_config[s] or 'password' in sources_config[s]):
-            # XXX Legacy
-            sources_secrets_d = os.path.join(config_dir, 'sources_secrets.d')
+        if not ('username' in config['sources'][s] or 'password' in config['sources'][s]):
+            sources_secrets_d = os.path.join(config['config_dir'], 'sources_secrets.d')
             if os.path.isfile(os.path.join(sources_secrets_d, s + '.json')):
+                # XXX Legacy
                 with open(os.path.join(sources_secrets_d, s + '.json')) as f:
                     j = json.load(f)
-                sources_config = dict_merge(sources_config, {s: j})
-        # Check again and generate secrets if still not found
-        if not ('username' in sources_config[s] or 'password' in sources_config[s]):
-            if 'username' not in sources_config[s]:
-                sources_config[s]['username'] = str(uuid.uuid4())
-            if 'password' not in sources_config[s]:
-                sources_config[s]['password'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
+                config['sources'][s]['username'] = j['username']
+                config['sources'][s]['password'] = j['password']
+            else:
+                if 'username' not in config['sources'][s]:
+                    config['sources'][s]['username'] = str(uuid.uuid4())
+                if 'password' not in config['sources'][s]:
+                    config['sources'][s]['password'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
             with open(os.path.join(var_sources_d, '10-' + s + '.json'), 'w') as f:
                 os.fchmod(f.fileno(), 0o600)
-                json_dump_p({s: {'username': sources_config[s]['username'], 'password': sources_config[s]['password']}}, f)
-
-    # Check for required sources options
-    for s in sources_config:
-        if 'path' not in sources_config[s]:
-            del sources_config[s]
-
-    config['sources'] = sources_config
-
-    return config
+                json_dump_p({s: {'username': config['sources'][s]['username'], 'password': config['sources'][s]['password']}}, f)
 
 
 def api_call(api_url, cmd, post_data, timeout=5):

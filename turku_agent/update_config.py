@@ -19,7 +19,12 @@ import random
 import os
 import subprocess
 import time
-from utils import json_dump_p, load_config, acquire_lock, api_call
+import logging
+from utils import json_dump_p, load_config, fill_config, acquire_lock, api_call
+
+
+class IncompleteConfigError(Exception):
+    pass
 
 
 def parse_args():
@@ -61,8 +66,9 @@ def restart_services():
 
 
 def send_config(config):
-    if 'api_url' not in config:
-        return
+    for k in ('api_url', 'api_auth'):
+        if k not in config:
+            raise IncompleteConfigError('Required config "%s" not found.' % k)
 
     api_out = {}
 
@@ -108,9 +114,14 @@ def main(argv):
     if args.wait:
         time.sleep(random.uniform(0, args.wait))
 
-    config = load_config(args.config_dir, writable=True)
+    config = load_config(args.config_dir)
     lock = acquire_lock(os.path.join(config['lock_dir'], 'turku-update-config.lock'))
+    fill_config(config)
     write_conf_files(config)
-    send_config(config)
+    try:
+        send_config(config)
+    except Exception, e:
+        logging.exception(e)
+        return
     restart_services()
     lock.close()
