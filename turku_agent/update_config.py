@@ -129,4 +129,8 @@ def main(argv):
         logging.exception(e)
         return
     restart_services()
+
+    from utils import migrate_configs
+    migrate_configs(config)
+
     lock.close()

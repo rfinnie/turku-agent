@@ -258,6 +258,47 @@ def fill_config(config):
                 json_dump_p({s: {'username': config['sources'][s]['username'], 'password': config['sources'][s]['password']}}, f)
 
 
+def migrate_configs(config):
+    import shutil
+
+    config_d = os.path.join(config['config_dir'], 'config.d')
+    sources_secrets_d = os.path.join(config['config_dir'], 'sources_secrets.d')
+    var_config_d = os.path.join(config['var_dir'], 'config.d')
+
+    # Avoid ETCBZR in the deployed Puppet environment
+    cleanup_migration = True
+    if 'cleanup_migration' in config:
+        cleanup_migration = config['cleanup_migration']
+
+    file_migrations = (
+        (os.path.join(config['config_dir'], 'id_rsa'), os.path.join(config['var_dir'], 'ssh_key')),
+        (os.path.join(config['config_dir'], 'id_rsa.pub'), os.path.join(config['var_dir'], 'ssh_key.pub')),
+        (os.path.join(config_d, '10-machine_uuid.json'), os.path.join(var_config_d, '10-machine_uuid.json')),
+        (os.path.join(config_d, '10-restore.json'), os.path.join(var_config_d, '10-restore.json')),
+    )
+
+    file_deletions = (
+        os.path.join(config['config_dir'], 'rsyncd.conf'),
+        os.path.join(config['config_dir'], 'rsyncd.secrets'),
+    )
+
+    for src, dst in file_migrations:
+        if os.path.isfile(src) and (not os.path.isfile(dst)):
+            if cleanup_migration:
+                shutil.move(src, dst)
+            else:
+                shutil.copy2(src, dst)
+
+    if cleanup_migration:
+        for file in file_deletions:
+            if os.path.isfile(file):
+                os.remove(file)
+
+        # Generated secrets have already been replicated in var_sources_d
+        if os.path.isdir(sources_secrets_d):
+            shutil.rmtree(sources_secrets_d)
+
+
 def api_call(api_url, cmd, post_data, timeout=5):
     url = urlparse.urlparse(api_url)
     if url.scheme == 'https':
