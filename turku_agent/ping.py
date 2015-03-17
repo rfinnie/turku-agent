@@ -22,7 +22,7 @@ import random
 import subprocess
 import tempfile
 import time
-from utils import load_config, acquire_lock
+from utils import load_config, acquire_lock, api_call
 
 
 def parse_args():
@@ -46,7 +46,7 @@ def main(argv):
     config = load_config(args.config_dir)
 
     # Basic checks
-    for i in ('ssh_private_key_file',):
+    for i in ('ssh_private_key_file', 'machine_uuid', 'machine_secret', 'api_url'):
         if i not in config:
             return
     if not os.path.isfile(config['ssh_private_key_file']):
@@ -61,6 +61,40 @@ def main(argv):
 
     lock = acquire_lock(os.path.join(config['lock_dir'], 'turku-agent-ping.lock'))
 
+    restore_mode = args.restore
+
+    ssh_req = {
+        'verbose': True,
+    }
+
+    if not restore_mode:
+        # Check with the API server
+        api_out = {}
+
+        machine_merge_map = (
+            ('machine_uuid', 'uuid'),
+            ('machine_secret', 'secret'),
+        )
+        api_out['machine'] = {}
+        for a, b in machine_merge_map:
+            if a in config:
+                api_out['machine'][b] = config[a]
+
+        api_reply = api_call(config['api_url'], 'agent_ping_checkin', api_out)
+
+        if 'scheduled_sources' not in api_reply:
+            return
+        ssh_req['sources'] = {}
+        for source in api_reply['scheduled_sources']:
+            if source not in config['sources']:
+                continue
+            ssh_req['sources'][source] = {
+                'username': config['sources'][source]['username'],
+                'password': config['sources'][source]['password'],
+            }
+        if len(ssh_req['sources']) == 0:
+            return
+
     # Write the server host public key
     t = tempfile.NamedTemporaryFile()
     for key in server_config['ssh_ping_host_keys']:
@@ -69,11 +103,11 @@ def main(argv):
 
     # Use a high port for the remote end
     high_port = random.randint(49152, 65535)
+    ssh_req['port'] = high_port
 
     # Restore mode
-    restore_mode = False
-    if args.restore:
-        restore_mode = True
+    if restore_mode:
+        ssh_req['action'] = 'restore'
         print('Entering restore mode.')
         print()
         if 'storage_name' in server_config:
@@ -89,6 +123,8 @@ def main(argv):
                 )
             )
             print()
+    else:
+        ssh_req['action'] = 'checkin'
 
     # Call ssh
     p = subprocess.Popen([
@@ -103,15 +139,8 @@ def main(argv):
         'turku-ping-remote',
     ], stdin=subprocess.PIPE)
 
-    out = {
-        'action': 'checkin',
-        'port': high_port,
-        'verbose': True,
-    }
-    if restore_mode:
-        out['action'] = 'restore'
-    # Let the server know the high port
-    p.stdin.write(json.dumps(out) + '\n.\n')
+    # Write the ssh request
+    p.stdin.write(json.dumps(ssh_req) + '\n.\n')
 
     # Wait for the server to close the SSH connection
     p.wait()
