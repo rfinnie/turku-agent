@@ -102,7 +102,13 @@ def load_config(config_dir):
     # Merge in config.d/*.json to the root level
     config_files = []
     if os.path.isdir(config_d):
-        config_files = [os.path.join(config_d, fn) for fn in os.listdir(config_d) if fn.endswith('.json') and os.path.isfile(os.path.join(config_d, fn)) and os.access(os.path.join(config_d, fn), os.R_OK)]
+        config_files = [
+            os.path.join(config_d, fn)
+            for fn in os.listdir(config_d)
+            if fn.endswith('.json')
+            and os.path.isfile(os.path.join(config_d, fn))
+            and os.access(os.path.join(config_d, fn), os.R_OK)
+        ]
     config_files.sort()
     for file in config_files:
         with open(file) as f:
@@ -118,7 +124,13 @@ def load_config(config_dir):
     var_config = {}
     var_config_files = []
     if os.path.isdir(var_config_d):
-        var_config_files = [os.path.join(var_config_d, fn) for fn in os.listdir(var_config_d) if fn.endswith('.json') and os.path.isfile(os.path.join(var_config_d, fn)) and os.access(os.path.join(var_config_d, fn), os.R_OK)]
+        var_config_files = [
+            os.path.join(var_config_d, fn)
+            for fn in os.listdir(var_config_d)
+            if fn.endswith('.json')
+            and os.path.isfile(os.path.join(var_config_d, fn))
+            and os.access(os.path.join(var_config_d, fn), os.R_OK)
+        ]
     var_config_files.sort()
     for file in var_config_files:
         with open(file) as f:
@@ -156,11 +168,23 @@ def load_config(config_dir):
     # Merge in sources.d/*.json to the sources dict
     sources_files = []
     if os.path.isdir(sources_d):
-        sources_files = [os.path.join(sources_d, fn) for fn in os.listdir(sources_d) if fn.endswith('.json') and os.path.isfile(os.path.join(sources_d, fn)) and os.access(os.path.join(sources_d, fn), os.R_OK)]
+        sources_files = [
+            os.path.join(sources_d, fn)
+            for fn in os.listdir(sources_d)
+            if fn.endswith('.json')
+            and os.path.isfile(os.path.join(sources_d, fn))
+            and os.access(os.path.join(sources_d, fn), os.R_OK)
+        ]
     sources_files.sort()
     var_sources_files = []
     if os.path.isdir(var_sources_d):
-        var_sources_files = [os.path.join(var_sources_d, fn) for fn in os.listdir(var_sources_d) if fn.endswith('.json') and os.path.isfile(os.path.join(var_sources_d, fn)) and os.access(os.path.join(var_sources_d, fn), os.R_OK)]
+        var_sources_files = [
+            os.path.join(var_sources_d, fn)
+            for fn in os.listdir(var_sources_d)
+            if fn.endswith('.json')
+            and os.path.isfile(os.path.join(var_sources_d, fn))
+            and os.access(os.path.join(var_sources_d, fn), os.R_OK)
+        ]
     var_sources_files.sort()
     sources_files += var_sources_files
     for file in sources_files:
@@ -195,13 +219,19 @@ def fill_config(config):
         config['machine_uuid'] = str(uuid.uuid4())
         write_uuid_data = True
     if 'machine_secret' not in config:
-        config['machine_secret'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
+        config['machine_secret'] = ''.join(
+            random.choice(string.ascii_letters + string.digits)
+            for i in range(30)
+        )
         write_uuid_data = True
     # Write out the machine UUID/secret if needed
     if write_uuid_data:
         with open(os.path.join(var_config_d, '10-machine_uuid.json'), 'w') as f:
             os.fchmod(f.fileno(), 0o600)
-            json_dump_p({'machine_uuid': config['machine_uuid'], 'machine_secret': config['machine_secret']}, f)
+            json_dump_p({
+                'machine_uuid': config['machine_uuid'],
+                'machine_secret': config['machine_secret'],
+            }, f)
 
     # Restoration configuration
     write_restore_data = False
@@ -215,7 +245,10 @@ def fill_config(config):
         config['restore_username'] = str(uuid.uuid4())
         write_restore_data = True
     if 'restore_password' not in config:
-        config['restore_password'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
+        config['restore_password'] = ''.join(
+            random.choice(string.ascii_letters + string.digits)
+            for i in range(30)
+        )
         write_restore_data = True
     if write_restore_data:
         with open(os.path.join(var_config_d, '10-restore.json'), 'w') as f:
@@ -232,7 +265,10 @@ def fill_config(config):
 
     # Generate the SSH keypair if it doesn't exist
     if 'ssh_private_key_file' not in config:
-        subprocess.check_call(['ssh-keygen', '-t', 'rsa', '-N', '', '-C', 'turku', '-f', os.path.join(config['var_dir'], 'ssh_key')])
+        subprocess.check_call([
+            'ssh-keygen', '-t', 'rsa', '-N', '', '-C', 'turku',
+            '-f', os.path.join(config['var_dir'], 'ssh_key')
+        ])
         with open(os.path.join(config['var_dir'], 'ssh_key.pub')) as f:
             config['ssh_public_key'] = f.read().rstrip()
         config['ssh_public_key_file'] = os.path.join(config['var_dir'], 'ssh_key.pub')
@@ -252,10 +288,18 @@ def fill_config(config):
                 if 'username' not in config['sources'][s]:
                     config['sources'][s]['username'] = str(uuid.uuid4())
                 if 'password' not in config['sources'][s]:
-                    config['sources'][s]['password'] = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(30))
+                    config['sources'][s]['password'] = ''.join(
+                        random.choice(string.ascii_letters + string.digits)
+                        for i in range(30)
+                    )
             with open(os.path.join(var_sources_d, '10-' + s + '.json'), 'w') as f:
                 os.fchmod(f.fileno(), 0o600)
-                json_dump_p({s: {'username': config['sources'][s]['username'], 'password': config['sources'][s]['password']}}, f)
+                json_dump_p({
+                    s: {
+                        'username': config['sources'][s]['username'],
+                        'password': config['sources'][s]['password'],
+                    }
+                }, f)
 
 
 def migrate_configs(config):

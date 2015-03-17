@@ -81,7 +81,13 @@ def main(argv):
         if 'restore_path' in config:
             print('Local destination path: %s' % config['restore_path'])
             print('Sample restore usage from storage unit:')
-            print('    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids ${P?}/ rsync://%s@127.0.0.1:%s/%s/' % (config['restore_password'], config['restore_username'], high_port, config['restore_module']))
+            print(
+                '    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids ${P?}/ rsync://%s@127.0.0.1:%s/%s/' % (
+                    config['restore_password'],
+                    config['restore_username'],
+                    high_port, config['restore_module']
+                )
+            )
             print()
 
     # Call ssh

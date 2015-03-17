@@ -40,14 +40,43 @@ def parse_args():
 
 def write_conf_files(config):
     # Build rsyncd.conf
-    built_rsyncd_conf = 'address = 127.0.0.1\nport = 27873\nlog file = /dev/stdout\nuid = root\ngid = root\nlist = false\n\n'
+    built_rsyncd_conf = (
+        'address = 127.0.0.1\n' +
+        'port = 27873\n' +
+        'log file = /dev/stdout\n' +
+        'uid = root\n' +
+        'gid = root\n' +
+        'list = false\n\n'
+    )
     rsyncd_secrets = []
     rsyncd_secrets.append((config['restore_username'], config['restore_password']))
-    built_rsyncd_conf += '[%s]\n    path = %s\n    auth users = %s\n    secrets file = %s\n    read only = false\n\n' % (config['restore_module'], config['restore_path'], config['restore_username'], os.path.join(config['var_dir'], 'rsyncd.secrets'))
+    built_rsyncd_conf += (
+        '[%s]\n' +
+        '    path = %s\n' +
+        '    auth users = %s\n' +
+        '    secrets file = %s\n' +
+        '    read only = false\n\n'
+    ) % (
+        config['restore_module'],
+        config['restore_path'],
+        config['restore_username'],
+        os.path.join(config['var_dir'], 'rsyncd.secrets'),
+    )
     for s in config['sources']:
         sd = config['sources'][s]
         rsyncd_secrets.append((sd['username'], sd['password']))
-        built_rsyncd_conf += '[%s]\n    path = %s\n    auth users = %s\n    secrets file = %s\n    read only = true\n\n' % (s, sd['path'], sd['username'], os.path.join(config['var_dir'], 'rsyncd.secrets'))
+        built_rsyncd_conf += (
+            '[%s]\n' +
+            '    path = %s\n' +
+            '    auth users = %s\n' +
+            '    secrets file = %s\n' +
+            '    read only = true\n\n'
+        ) % (
+            s,
+            sd['path'],
+            sd['username'],
+            os.path.join(config['var_dir'], 'rsyncd.secrets'),
+        )
     with open(os.path.join(config['var_dir'], 'rsyncd.conf'), 'w') as f:
         f.write(built_rsyncd_conf)
 
