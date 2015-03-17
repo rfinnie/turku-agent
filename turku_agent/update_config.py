@@ -85,7 +85,7 @@ def write_conf_files(config):
     for (username, password) in rsyncd_secrets:
         built_rsyncd_secrets += username + ':' + password + '\n'
     with open(os.path.join(config['var_dir'], 'rsyncd.secrets'), 'w') as f:
-        os.chmod(os.path.join(config['var_dir'], 'rsyncd.secrets'), 0o600)
+        os.fchmod(f.fileno(), 0o600)
         f.write(built_rsyncd_secrets)
 
 
@@ -126,15 +126,11 @@ def send_config(config):
 
     api_out['sources'] = config['sources']
 
-    try:
-        api_reply = api_call(config['api_url'], 'update_config', api_out)
-    except:
-        # pass
-        raise
+    api_reply = api_call(config['api_url'], 'update_config', api_out)
 
     # Write the response
     with open(os.path.join(config['var_dir'], 'server_config.json'), 'w') as f:
-        os.chmod(os.path.join(config['var_dir'], 'server_config.json'), 0o600)
+        os.fchmod(f.fileno(), 0o600)
         json_dump_p(api_reply, f)
 
 
