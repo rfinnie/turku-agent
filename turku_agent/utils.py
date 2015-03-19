@@ -143,6 +143,9 @@ def load_config(config_dir):
     if 'lock_dir' not in config:
         config['lock_dir'] = '/var/lock'
 
+    if 'rsyncd_command' not in config:
+        config['rsyncd_command'] = ['rsync']
+
     var_sources_d = os.path.join(config['var_dir'], 'sources.d')
 
     # Validate the unit name
