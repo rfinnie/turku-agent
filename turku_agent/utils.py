@@ -146,6 +146,9 @@ def load_config(config_dir):
     if 'rsyncd_command' not in config:
         config['rsyncd_command'] = ['rsync']
 
+    if 'ssh_command' not in config:
+        config['ssh_command'] = ['ssh']
+
     var_sources_d = os.path.join(config['var_dir'], 'sources.d')
 
     # Validate the unit name

@@ -127,8 +127,9 @@ def main(argv):
         ssh_req['action'] = 'checkin'
 
     # Call ssh
-    p = subprocess.Popen([
-        'ssh', '-T',
+    ssh_command = config['ssh_command']
+    ssh_command += [
+        '-T',
         '-o', 'UserKnownHostsFile=%s' % t.name,
         '-o', 'StrictHostKeyChecking=yes',
         '-i', config['ssh_private_key_file'],
@@ -137,7 +138,8 @@ def main(argv):
         '-l', server_config['ssh_ping_user'],
         server_config['ssh_ping_host'],
         'turku-ping-remote',
-    ], stdin=subprocess.PIPE)
+    ]
+    p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE)
 
     # Write the ssh request
     p.stdin.write(json.dumps(ssh_req) + '\n.\n')
