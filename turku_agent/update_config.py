@@ -41,8 +41,8 @@ def parse_args():
 def write_conf_files(config):
     # Build rsyncd.conf
     built_rsyncd_conf = (
-        'address = 127.0.0.1\n' +
-        'port = 27873\n' +
+        'address = %s\n' % config['rsyncd_local_address'] +
+        'port = %d\n' % config['rsyncd_local_port'] +
         'log file = /dev/stdout\n' +
         'uid = root\n' +
         'gid = root\n' +

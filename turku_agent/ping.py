@@ -133,7 +133,7 @@ def main(argv):
         '-o', 'UserKnownHostsFile=%s' % t.name,
         '-o', 'StrictHostKeyChecking=yes',
         '-i', config['ssh_private_key_file'],
-        '-R', '%s:127.0.0.1:27873' % high_port,
+        '-R', '%d:%s:%d' % (high_port, config['rsyncd_local_address'], config['rsyncd_local_port']),
         '-p', str(server_config['ssh_ping_port']),
         '-l', server_config['ssh_ping_user'],
         server_config['ssh_ping_host'],

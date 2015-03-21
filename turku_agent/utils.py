@@ -146,6 +146,12 @@ def load_config(config_dir):
     if 'rsyncd_command' not in config:
         config['rsyncd_command'] = ['rsync']
 
+    if 'rsyncd_local_address' not in config:
+        config['rsyncd_local_address'] = '127.0.0.1'
+
+    if 'rsyncd_local_port' not in config:
+        config['rsyncd_local_port'] = 27873
+
     if 'ssh_command' not in config:
         config['ssh_command'] = ['ssh']
 
