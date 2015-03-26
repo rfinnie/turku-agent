@@ -336,6 +336,7 @@ def migrate_configs(config):
     file_deletions = (
         os.path.join(config['config_dir'], 'rsyncd.conf'),
         os.path.join(config['config_dir'], 'rsyncd.secrets'),
+        os.path.join(config['var_dir'], 'server_config.json'),
     )
 
     for src, dst in file_migrations:

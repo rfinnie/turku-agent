@@ -128,11 +128,6 @@ def send_config(config):
 
     api_reply = api_call(config['api_url'], 'update_config', api_out)
 
-    # Write the response
-    with open(os.path.join(config['var_dir'], 'server_config.json'), 'w') as f:
-        os.fchmod(f.fileno(), 0o600)
-        json_dump_p(api_reply, f)
-
 
 def main(argv):
     args = parse_args()

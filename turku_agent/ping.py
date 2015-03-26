@@ -33,7 +33,40 @@ def parse_args():
     parser.add_argument('--config-dir', '-c', type=str, default='/etc/turku-agent')
     parser.add_argument('--wait', '-w', type=float)
     parser.add_argument('--restore', action='store_true')
+    parser.add_argument('--restore-storage', type=str, default=None)
     return parser.parse_args()
+
+
+def call_ssh(config, storage, ssh_req):
+    # Write the server host public key
+    t = tempfile.NamedTemporaryFile()
+    for key in storage['ssh_ping_host_keys']:
+        t.write('%s %s\n' % (storage['ssh_ping_host'], key))
+    t.flush()
+
+    # Call ssh
+    ssh_command = config['ssh_command']
+    ssh_command += [
+        '-T',
+        '-o', 'UserKnownHostsFile=%s' % t.name,
+        '-o', 'StrictHostKeyChecking=yes',
+        '-i', config['ssh_private_key_file'],
+        '-R', '%d:%s:%d' % (ssh_req['port'], config['rsyncd_local_address'], config['rsyncd_local_port']),
+        '-p', str(storage['ssh_ping_port']),
+        '-l', storage['ssh_ping_user'],
+        storage['ssh_ping_host'],
+        'turku-ping-remote',
+    ]
+    p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE)
+
+    # Write the ssh request
+    p.stdin.write(json.dumps(ssh_req) + '\n.\n')
+
+    # Wait for the server to close the SSH connection
+    p.wait()
+
+    # Cleanup
+    t.close()
 
 
 def main(argv):
@@ -51,67 +84,66 @@ def main(argv):
             return
     if not os.path.isfile(config['ssh_private_key_file']):
         return
-    if not os.path.isfile(os.path.join(config['var_dir'], 'server_config.json')):
-        return
-    with open(os.path.join(config['var_dir'], 'server_config.json')) as f:
-        server_config = json.load(f)
-    for i in ('ssh_ping_host', 'ssh_ping_host_keys', 'ssh_ping_port', 'ssh_ping_user'):
-        if i not in server_config:
-            return
 
     lock = acquire_lock(os.path.join(config['lock_dir'], 'turku-agent-ping.lock'))
 
     restore_mode = args.restore
 
-    ssh_req = {
-        'verbose': True,
-    }
+    # Check with the API server
+    api_out = {}
 
-    if not restore_mode:
-        # Check with the API server
-        api_out = {}
+    machine_merge_map = (
+        ('machine_uuid', 'uuid'),
+        ('machine_secret', 'secret'),
+    )
+    api_out['machine'] = {}
+    for a, b in machine_merge_map:
+        if a in config:
+            api_out['machine'][b] = config[a]
 
-        machine_merge_map = (
-            ('machine_uuid', 'uuid'),
-            ('machine_secret', 'secret'),
-        )
-        api_out['machine'] = {}
-        for a, b in machine_merge_map:
-            if a in config:
-                api_out['machine'][b] = config[a]
-
-        api_reply = api_call(config['api_url'], 'agent_ping_checkin', api_out)
-
-        if 'scheduled_sources' not in api_reply:
-            return
-        ssh_req['sources'] = {}
-        for source in api_reply['scheduled_sources']:
-            if source not in config['sources']:
-                continue
-            ssh_req['sources'][source] = {
-                'username': config['sources'][source]['username'],
-                'password': config['sources'][source]['password'],
-            }
-        if len(ssh_req['sources']) == 0:
-            return
-
-    # Write the server host public key
-    t = tempfile.NamedTemporaryFile()
-    for key in server_config['ssh_ping_host_keys']:
-        t.write('%s %s\n' % (server_config['ssh_ping_host'], key))
-    t.flush()
-
-    # Use a high port for the remote end
-    high_port = random.randint(49152, 65535)
-    ssh_req['port'] = high_port
-
-    # Restore mode
     if restore_mode:
-        ssh_req['action'] = 'restore'
         print('Entering restore mode.')
         print()
-        if 'storage_name' in server_config:
-            print('Storage unit: %s' % server_config['storage_name'])
+        api_reply = api_call(config['api_url'], 'agent_ping_restore', api_out)
+
+        sources_by_storage = {}
+        for source_name in api_reply['sources']:
+            source = api_reply['sources'][source_name]
+            if source_name not in config['sources']:
+                continue
+            if 'storage' not in source:
+                continue
+            if source['storage']['name'] not in sources_by_storage:
+                sources_by_storage[source['storage']['name']] = {}
+            sources_by_storage[source['storage']['name']][source_name] = source
+
+        if len(sources_by_storage) == 0:
+            print('Cannot find any appropraite sources.')
+            return
+        print('This machine\'s sources are on the following storage units:')
+        for storage_name in sources_by_storage:
+            print('    %s' % storage_name)
+            for source_name in sources_by_storage[storage_name]:
+                print('        %s' % source_name)
+        print()
+        if len(sources_by_storage) == 1:
+            storage = sources_by_storage.values()[0].values()[0]['storage']
+        elif args.restore_storage:
+            if args.restore_storage in sources_by_storage:
+                storage = sources_by_storage[args.restore_storage]['storage']
+            else:
+                print('Cannot find appropriate storage "%s"' % args.restore_storage)
+                return
+        else:
+            print('Multiple storages found.  Please use --restore-storage to specify one.')
+            return
+
+        ssh_req = {
+            'verbose': True,
+            'action': 'restore',
+            'port': random.randint(49152, 65535),
+        }
+        print('Storage unit: %s' % storage['name'])
         if 'restore_path' in config:
             print('Local destination path: %s' % config['restore_path'])
             print('Sample restore usage from storage unit:')
@@ -119,34 +151,40 @@ def main(argv):
                 '    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids ${P?}/ rsync://%s@127.0.0.1:%s/%s/' % (
                     config['restore_password'],
                     config['restore_username'],
-                    high_port, config['restore_module']
+                    ssh_req['port'], config['restore_module']
                 )
             )
             print()
+        call_ssh(config, storage, ssh_req)
     else:
-        ssh_req['action'] = 'checkin'
+        api_reply = api_call(config['api_url'], 'agent_ping_checkin', api_out)
 
-    # Call ssh
-    ssh_command = config['ssh_command']
-    ssh_command += [
-        '-T',
-        '-o', 'UserKnownHostsFile=%s' % t.name,
-        '-o', 'StrictHostKeyChecking=yes',
-        '-i', config['ssh_private_key_file'],
-        '-R', '%d:%s:%d' % (high_port, config['rsyncd_local_address'], config['rsyncd_local_port']),
-        '-p', str(server_config['ssh_ping_port']),
-        '-l', server_config['ssh_ping_user'],
-        server_config['ssh_ping_host'],
-        'turku-ping-remote',
-    ]
-    p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE)
+        if 'scheduled_sources' not in api_reply:
+            return
+        sources_by_storage = {}
+        for source_name in api_reply['scheduled_sources']:
+            source = api_reply['scheduled_sources'][source_name]
+            if source_name not in config['sources']:
+                continue
+            if 'storage' not in source:
+                continue
+            if source['storage']['name'] not in sources_by_storage:
+                sources_by_storage[source['storage']['name']] = {}
+            sources_by_storage[source['storage']['name']][source_name] = source
 
-    # Write the ssh request
-    p.stdin.write(json.dumps(ssh_req) + '\n.\n')
-
-    # Wait for the server to close the SSH connection
-    p.wait()
+        for storage_name in sources_by_storage:
+            ssh_req = {
+                'verbose': True,
+                'action': 'checkin',
+                'port': random.randint(49152, 65535),
+                'sources': {},
+            }
+            for source in sources_by_storage[storage_name]:
+                ssh_req['sources'][source] = {
+                    'username': config['sources'][source]['username'],
+                    'password': config['sources'][source]['password'],
+                }
+            call_ssh(config, sources_by_storage[storage_name].values()[0]['storage'], ssh_req)
 
     # Cleanup
-    t.close()
     lock.close()
