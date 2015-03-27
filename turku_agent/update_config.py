@@ -121,6 +121,7 @@ def send_config(config):
         ('service_name', 'service_name'),
         ('unit_name', 'unit_name'),
         ('ssh_public_key', 'ssh_public_key'),
+        ('published', 'published'),
     )
     api_out['machine'] = {}
     for a, b in machine_merge_map:
