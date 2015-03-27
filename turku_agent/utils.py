@@ -79,6 +79,15 @@ def json_dumps_p(obj):
     return json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': '))
 
 
+def json_load_file(file):
+    with open(file) as f:
+        try:
+            return json.load(f)
+        except ValueError, e:
+            e.args += (file,)
+            raise
+
+
 def dict_merge(s, m):
     """Recursively merge one dict into another."""
     if not isinstance(m, dict):
@@ -111,9 +120,7 @@ def load_config(config_dir):
         ]
     config_files.sort()
     for file in config_files:
-        with open(file) as f:
-            j = json.load(f)
-        config = dict_merge(config, j)
+        config = dict_merge(config, json_load_file(file))
 
     if 'var_dir' not in config:
         config['var_dir'] = '/var/lib/turku-agent'
@@ -133,9 +140,7 @@ def load_config(config_dir):
         ]
     var_config_files.sort()
     for file in var_config_files:
-        with open(file) as f:
-            j = json.load(f)
-        var_config = dict_merge(var_config, j)
+        var_config = dict_merge(var_config, json_load_file(file))
     # /etc gets priority over /var
     var_config = dict_merge(var_config, config)
     config = var_config
@@ -200,9 +205,7 @@ def load_config(config_dir):
     var_sources_files.sort()
     sources_files += var_sources_files
     for file in sources_files:
-        with open(file) as f:
-            j = json.load(f)
-        sources_config = dict_merge(sources_config, j)
+        sources_config = dict_merge(sources_config, json_load_file(file))
 
     # Check for required sources options
     for s in sources_config:
@@ -292,8 +295,7 @@ def fill_config(config):
             sources_secrets_d = os.path.join(config['config_dir'], 'sources_secrets.d')
             if os.path.isfile(os.path.join(sources_secrets_d, s + '.json')):
                 # XXX Legacy
-                with open(os.path.join(sources_secrets_d, s + '.json')) as f:
-                    j = json.load(f)
+                j = json_load_file(os.path.join(sources_secrets_d, s + '.json'))
                 config['sources'][s]['username'] = j['username']
                 config['sources'][s]['password'] = j['password']
             else:
