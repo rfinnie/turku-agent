@@ -96,19 +96,22 @@ def restart_services():
 
 
 def send_config(config):
-    for k in ('api_url', 'api_auth'):
+    required_keys = ['api_url']
+    if 'api_auth' not in config:
+        required_keys += ['api_auth_name', 'api_auth_secret']
+    for k in required_keys:
         if k not in config:
             raise IncompleteConfigError('Required config "%s" not found.' % k)
 
     api_out = {}
-
-    # Merge the following options into the root
-    root_merge_map = (
-        ('api_auth', 'auth'),
-    )
-    for a, b in root_merge_map:
-        if a in config:
-            api_out[b] = config[a]
+    if ('api_auth_name' in config) and ('api_auth_secret' in config):
+        api_out['auth'] = {
+            'name': config['api_auth_name'],
+            'secret': config['api_auth_secret'],
+        }
+    else:
+        # XXX legacy
+        api_out['auth'] = config['api_auth']
 
     # Merge the following options into the machine section
     machine_merge_map = (
