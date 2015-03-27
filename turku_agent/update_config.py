@@ -124,7 +124,7 @@ def send_config(config):
         if a in config:
             api_out['machine'][b] = config[a]
 
-    api_out['sources'] = config['sources']
+    api_out['machine']['sources'] = config['sources']
 
     api_reply = api_call(config['api_url'], 'update_config', api_out)
 

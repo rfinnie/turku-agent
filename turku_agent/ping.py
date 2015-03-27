@@ -107,8 +107,8 @@ def main(argv):
         api_reply = api_call(config['api_url'], 'agent_ping_restore', api_out)
 
         sources_by_storage = {}
-        for source_name in api_reply['sources']:
-            source = api_reply['sources'][source_name]
+        for source_name in api_reply['machine']['sources']:
+            source = api_reply['machine']['sources'][source_name]
             if source_name not in config['sources']:
                 continue
             if 'storage' not in source:
@@ -162,8 +162,8 @@ def main(argv):
         if 'scheduled_sources' not in api_reply:
             return
         sources_by_storage = {}
-        for source_name in api_reply['scheduled_sources']:
-            source = api_reply['scheduled_sources'][source_name]
+        for source_name in api_reply['machine']['scheduled_sources']:
+            source = api_reply['machine']['scheduled_sources'][source_name]
             if source_name not in config['sources']:
                 continue
             if 'storage' not in source:
