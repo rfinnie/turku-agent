@@ -1,2 +1,3 @@
 include turku-agent.cron
 include turku-agent-rsyncd.conf
+include turku-agent-rsyncd.service
