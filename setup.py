@@ -17,32 +17,10 @@
 
 from distutils.core import setup
 
-
-VERSION = '0.1.0'
-
-
-def get_bzr_revno():
-    try:
-        import bzrlib.errors
-        from bzrlib.branch import Branch
-    except ImportError:
-        return 0
-    import os
-    try:
-        branch = Branch.open(os.path.dirname(__file__))
-    except bzrlib.errors.NotBranchError:
-        return 0
-    return branch.last_revision_info()[0]
-
-
-v = VERSION.split('.')
-if int(v[1]) % 2 == 1:
-    VERSION = '.'.join([v[0], v[1], str(get_bzr_revno())])
-
 setup(
     name='turku_agent',
     description='Turku backups - client agent',
-    version=VERSION,
+    version='0.1.0',
     author='Ryan Finnie',
     author_email='ryan.finnie@canonical.com',
     url='https://launchpad.net/turku',
