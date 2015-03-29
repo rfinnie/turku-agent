@@ -20,7 +20,7 @@ from distutils.core import setup
 setup(
     name='turku_agent',
     description='Turku backups - client agent',
-    version='0.0.0',
+    version='0.1.0',
     author='Ryan Finnie',
     author_email='ryan.finnie@canonical.com',
     url='https://launchpad.net/turku',
