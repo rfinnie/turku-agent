@@ -65,7 +65,10 @@ def call_ssh(config, storage, ssh_req):
     p.stdin.write(json.dumps(ssh_req) + '\n.\n')
 
     # Wait for the server to close the SSH connection
-    p.wait()
+    try:
+        p.wait()
+    except KeyboardInterrupt:
+        pass
 
     # Cleanup
     t.close()
