@@ -208,7 +208,7 @@ def load_config(config_dir):
         sources_config = dict_merge(sources_config, json_load_file(file))
 
     # Check for required sources options
-    for s in sources_config:
+    for s in sources_config.keys():
         if 'path' not in sources_config[s]:
             del sources_config[s]
 
