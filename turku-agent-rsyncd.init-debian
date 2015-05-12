@@ -1,0 +1,55 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:          turku-agent-rsyncd
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Should-Start:      $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      
+# Short-Description: turku rsync daemon
+# Description:       turku rsync daemon
+### END INIT INFO
+
+set -e
+
+PID_FILE=/var/run/turku-agent-rsyncd.pid
+
+. /lib/lsb/init-functions
+
+export PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+case "$1" in
+  start)
+    log_daemon_msg "Starting turku rsync daemon" "turku-agent-rsyncd"
+    start-stop-daemon --start --quiet --background --make-pidfile \
+      --pidfile $PID_FILE --exec /usr/bin/env -- turku-agent-rsyncd-wrapper
+    log_end_msg $?
+    ;;
+  stop)
+    log_daemon_msg "Stopping turku rsync daemon" "turku-agent-rsyncd"
+    start-stop-daemon --stop --quiet --oknodo --pidfile $PID_FILE --retry 5
+    log_end_msg $?
+    rm -f $PID_FILE
+    ;;
+
+  reload|force-reload)
+    log_daemon_msg "Reloading turku rsync daemon" "turku-agent-rsyncd"
+    log_end_msg 0
+    ;;
+
+  restart)
+    "$0" stop
+    "$0" start
+    ;;
+
+  status)
+    status_of_proc -p $PID_FILE rsync turku-agent-rsyncd
+    exit $? # notreached due to set -e
+    ;;
+  *)
+    echo "Usage: /etc/init.d/turku-agent-rsyncd {start|stop|reload|force-reload|restart|status}"
+    exit 1
+esac
+
+exit 0

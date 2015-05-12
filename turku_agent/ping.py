@@ -48,8 +48,10 @@ def call_ssh(config, storage, ssh_req):
     ssh_command = config['ssh_command']
     ssh_command += [
         '-T',
+        '-o', 'BatchMode=yes',
         '-o', 'UserKnownHostsFile=%s' % t.name,
         '-o', 'StrictHostKeyChecking=yes',
+        '-o', 'CheckHostIP=no',
         '-i', config['ssh_private_key_file'],
         '-R', '%d:%s:%d' % (ssh_req['port'], config['rsyncd_local_address'], config['rsyncd_local_port']),
         '-p', str(storage['ssh_ping_port']),
@@ -63,7 +65,10 @@ def call_ssh(config, storage, ssh_req):
     p.stdin.write(json.dumps(ssh_req) + '\n.\n')
 
     # Wait for the server to close the SSH connection
-    p.wait()
+    try:
+        p.wait()
+    except KeyboardInterrupt:
+        pass
 
     # Cleanup
     t.close()
