@@ -151,7 +151,7 @@ def main(argv):
         if args.debug:
             raise
         logging.exception(e)
-        return
+        return 1
     restart_services()
 
     from utils import migrate_configs
