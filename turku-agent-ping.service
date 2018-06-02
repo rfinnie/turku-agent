@@ -1,0 +1,6 @@
+[Unit]
+Description=turku-agent-ping
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env turku-agent-ping

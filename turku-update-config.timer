@@ -1,0 +1,10 @@
+[Unit]
+Description=turku-agent-ping
+
+[Timer]
+OnCalendar=0,12:0
+RandomizedDelaySec=12h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
