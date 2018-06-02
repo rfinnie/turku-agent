@@ -1,5 +1,5 @@
 [Unit]
-Description=turku-agent-ping
+Description=turku-update-config
 
 [Timer]
 OnCalendar=0,12:0
