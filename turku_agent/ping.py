@@ -34,6 +34,7 @@ def parse_args():
     parser.add_argument('--wait', '-w', type=float)
     parser.add_argument('--restore', action='store_true')
     parser.add_argument('--restore-storage', type=str, default=None)
+    parser.add_argument('--gonogo-program', type=str, default=None)
     return parser.parse_args()
 
 
@@ -89,6 +90,13 @@ def main(argv):
             return
     if not os.path.isfile(config['ssh_private_key_file']):
         return
+
+    # If a go/no-go program is defined, run it and only go if it exits 0.
+    if args.gonogo_program is not None:
+        try:
+            subprocess.check_call([args.gonogo_program])
+        except (subprocess.CalledProcessError, OSError):
+            return
 
     lock = acquire_lock(os.path.join(config['lock_dir'], 'turku-agent-ping.lock'))
 
