@@ -105,12 +105,13 @@ def send_config(config):
 
     api_out = {}
     if ('api_auth_name' in config) and ('api_auth_secret' in config):
+        # name/secret style
         api_out['auth'] = {
             'name': config['api_auth_name'],
             'secret': config['api_auth_secret'],
         }
     else:
-        # XXX legacy
+        # nameless secret style
         api_out['auth'] = config['api_auth']
 
     # Merge the following options into the machine section
@@ -153,8 +154,5 @@ def main():
         logging.exception(e)
         return 1
     restart_services()
-
-    from .utils import migrate_configs
-    migrate_configs(config)
 
     lock.close()

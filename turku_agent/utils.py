@@ -174,12 +174,6 @@ def load_config(config_dir):
             config['ssh_public_key'] = f.read().rstrip()
         config['ssh_public_key_file'] = os.path.join(config['var_dir'], 'ssh_key.pub')
         config['ssh_private_key_file'] = os.path.join(config['var_dir'], 'ssh_key')
-    elif os.path.isfile(os.path.join(config['config_dir'], 'id_rsa.pub')):
-        # XXX Legacy
-        with open(os.path.join(config['config_dir'], 'id_rsa.pub')) as f:
-            config['ssh_public_key'] = f.read().rstrip()
-        config['ssh_public_key_file'] = os.path.join(config['config_dir'], 'id_rsa.pub')
-        config['ssh_private_key_file'] = os.path.join(config['config_dir'], 'id_rsa')
 
     sources_config = {}
     # Merge in sources.d/*.json to the sources dict
@@ -293,19 +287,13 @@ def fill_config(config):
         # Check for missing usernames/passwords
         if not ('username' in config['sources'][s] or 'password' in config['sources'][s]):
             sources_secrets_d = os.path.join(config['config_dir'], 'sources_secrets.d')
-            if os.path.isfile(os.path.join(sources_secrets_d, s + '.json')):
-                # XXX Legacy
-                j = json_load_file(os.path.join(sources_secrets_d, s + '.json'))
-                config['sources'][s]['username'] = j['username']
-                config['sources'][s]['password'] = j['password']
-            else:
-                if 'username' not in config['sources'][s]:
-                    config['sources'][s]['username'] = str(uuid.uuid4())
-                if 'password' not in config['sources'][s]:
-                    config['sources'][s]['password'] = ''.join(
-                        random.choice(string.ascii_letters + string.digits)
-                        for i in range(30)
-                    )
+            if 'username' not in config['sources'][s]:
+                config['sources'][s]['username'] = str(uuid.uuid4())
+            if 'password' not in config['sources'][s]:
+                config['sources'][s]['password'] = ''.join(
+                    random.choice(string.ascii_letters + string.digits)
+                    for i in range(30)
+                )
             with open(os.path.join(var_sources_d, '10-' + s + '.json'), 'w') as f:
                 os.fchmod(f.fileno(), 0o600)
                 json_dump_p({
@@ -314,48 +302,6 @@ def fill_config(config):
                         'password': config['sources'][s]['password'],
                     }
                 }, f)
-
-
-def migrate_configs(config):
-    import shutil
-
-    config_d = os.path.join(config['config_dir'], 'config.d')
-    sources_secrets_d = os.path.join(config['config_dir'], 'sources_secrets.d')
-    var_config_d = os.path.join(config['var_dir'], 'config.d')
-
-    # Avoid ETCBZR in the deployed Puppet environment
-    cleanup_migration = True
-    if 'cleanup_migration' in config:
-        cleanup_migration = config['cleanup_migration']
-
-    file_migrations = (
-        (os.path.join(config['config_dir'], 'id_rsa'), os.path.join(config['var_dir'], 'ssh_key')),
-        (os.path.join(config['config_dir'], 'id_rsa.pub'), os.path.join(config['var_dir'], 'ssh_key.pub')),
-        (os.path.join(config_d, '10-machine_uuid.json'), os.path.join(var_config_d, '10-machine_uuid.json')),
-        (os.path.join(config_d, '10-restore.json'), os.path.join(var_config_d, '10-restore.json')),
-    )
-
-    file_deletions = (
-        os.path.join(config['config_dir'], 'rsyncd.conf'),
-        os.path.join(config['config_dir'], 'rsyncd.secrets'),
-        os.path.join(config['var_dir'], 'server_config.json'),
-    )
-
-    for src, dst in file_migrations:
-        if os.path.isfile(src) and (not os.path.isfile(dst)):
-            if cleanup_migration:
-                shutil.move(src, dst)
-            else:
-                shutil.copy2(src, dst)
-
-    if cleanup_migration:
-        for file in file_deletions:
-            if os.path.isfile(file):
-                os.remove(file)
-
-        # Generated secrets have already been replicated in var_sources_d
-        if os.path.isdir(sources_secrets_d):
-            shutil.rmtree(sources_secrets_d)
 
 
 def api_call(api_url, cmd, post_data, timeout=5):
