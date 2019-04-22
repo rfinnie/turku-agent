@@ -141,7 +141,7 @@ def main():
                 print('        %s' % source_name)
         print()
         if len(sources_by_storage) == 1:
-            storage = list(sources_by_storage.values())[0].values()[0]['storage']
+            storage = list(list(sources_by_storage.values())[0].values())[0]['storage']
         elif args.restore_storage:
             if args.restore_storage in sources_by_storage:
                 storage = sources_by_storage[args.restore_storage]['storage']
