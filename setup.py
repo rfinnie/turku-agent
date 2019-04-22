@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Turku backups - client agent
 # Copyright 2015 Canonical Ltd.
@@ -15,18 +15,25 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from distutils.core import setup
+import sys
+from setuptools import setup
+
+assert(sys.version_info > (3, 4))
+
 
 setup(
     name='turku_agent',
     description='Turku backups - client agent',
-    version='0.1.0',
+    version='0.2.0',
     author='Ryan Finnie',
     author_email='ryan.finnie@canonical.com',
     url='https://launchpad.net/turku',
     packages=['turku_agent'],
-    scripts=[
-        'turku-agent-ping', 'turku-agent-rsyncd-wrapper',
-        'turku-update-config',
-    ],
+    entry_points={
+        'console_scripts': [
+            'turku-agent-ping = turku_agent.ping:main',
+            'turku-agent-rsyncd-wrapper = turku_agent.rsyncd_wrapper:main',
+            'turku-update-config = turku_agent.update_config:main',
+        ],
+    },
 )

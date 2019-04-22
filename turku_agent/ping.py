@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Turku backups - client agent
 # Copyright 2015 Canonical Ltd.
@@ -15,14 +15,14 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function
+
 import os
 import json
 import random
 import subprocess
 import tempfile
 import time
-from utils import load_config, acquire_lock, api_call
+from .utils import load_config, acquire_lock, api_call
 
 
 def parse_args():
@@ -42,7 +42,7 @@ def call_ssh(config, storage, ssh_req):
     # Write the server host public key
     t = tempfile.NamedTemporaryFile()
     for key in storage['ssh_ping_host_keys']:
-        t.write('%s %s\n' % (storage['ssh_ping_host'], key))
+        t.write(('%s %s\n' % (storage['ssh_ping_host'], key)).encode('UTF-8'))
     t.flush()
 
     # Call ssh
@@ -63,7 +63,8 @@ def call_ssh(config, storage, ssh_req):
     p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE)
 
     # Write the ssh request
-    p.stdin.write(json.dumps(ssh_req) + '\n.\n')
+    p.stdin.write((json.dumps(ssh_req) + '\n.\n').encode('UTF-8'))
+    p.stdin.flush()
 
     # Wait for the server to close the SSH connection
     try:
@@ -75,7 +76,7 @@ def call_ssh(config, storage, ssh_req):
     t.close()
 
 
-def main(argv):
+def main():
     args = parse_args()
 
     # Sleep a random amount of time if requested
@@ -140,7 +141,7 @@ def main(argv):
                 print('        %s' % source_name)
         print()
         if len(sources_by_storage) == 1:
-            storage = sources_by_storage.values()[0].values()[0]['storage']
+            storage = list(sources_by_storage.values())[0].values()[0]['storage']
         elif args.restore_storage:
             if args.restore_storage in sources_by_storage:
                 storage = sources_by_storage[args.restore_storage]['storage']
@@ -197,7 +198,7 @@ def main(argv):
                     'username': config['sources'][source]['username'],
                     'password': config['sources'][source]['password'],
                 }
-            call_ssh(config, sources_by_storage[storage_name].values()[0]['storage'], ssh_req)
+            call_ssh(config, list(sources_by_storage[storage_name].values())[0]['storage'], ssh_req)
 
     # Cleanup
     lock.close()

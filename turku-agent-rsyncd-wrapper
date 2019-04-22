@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Turku backups - client agent
 # Copyright 2015 Canonical Ltd.
@@ -17,4 +17,4 @@
 
 import sys
 from turku_agent import rsyncd_wrapper
-sys.exit(rsyncd_wrapper.main(sys.argv))
+sys.exit(rsyncd_wrapper.main())

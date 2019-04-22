@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Turku backups - client agent
 # Copyright 2015 Canonical Ltd.
@@ -20,7 +20,7 @@ import os
 import subprocess
 import time
 import logging
-from utils import json_dump_p, json_dumps_p, load_config, fill_config, acquire_lock, api_call
+from .utils import json_dump_p, json_dumps_p, load_config, fill_config, acquire_lock, api_call
 
 
 class IncompleteConfigError(Exception):
@@ -133,7 +133,7 @@ def send_config(config):
     api_reply = api_call(config['api_url'], 'update_config', api_out)
 
 
-def main(argv):
+def main():
     args = parse_args()
     # Sleep a random amount of time if requested
     if args.wait:
@@ -143,18 +143,18 @@ def main(argv):
     lock = acquire_lock(os.path.join(config['lock_dir'], 'turku-update-config.lock'))
     fill_config(config)
     if args.debug:
-        print json_dumps_p(config)
+        print(json_dumps_p(config))
     write_conf_files(config)
     try:
         send_config(config)
-    except Exception, e:
+    except Exception as e:
         if args.debug:
             raise
         logging.exception(e)
         return 1
     restart_services()
 
-    from utils import migrate_configs
+    from .utils import migrate_configs
     migrate_configs(config)
 
     lock.close()

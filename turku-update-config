@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Turku backups - client agent
 # Copyright 2015 Canonical Ltd.
@@ -17,4 +17,4 @@
 
 import sys
 from turku_agent import update_config
-sys.exit(update_config.main(sys.argv))
+sys.exit(update_config.main())

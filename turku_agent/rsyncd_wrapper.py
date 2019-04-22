@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Turku backups - client agent
 # Copyright 2015 Canonical Ltd.
@@ -16,7 +16,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from utils import load_config
+from .utils import load_config
 
 
 def parse_args():
@@ -29,7 +29,7 @@ def parse_args():
     return parser.parse_known_args()
 
 
-def main(argv):
+def main():
     args, rest = parse_args()
 
     config = load_config(args.config_dir)

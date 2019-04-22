@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Turku backups - client agent
 # Copyright 2015 Canonical Ltd.
@@ -23,8 +23,8 @@ import os
 import copy
 import subprocess
 import platform
-import urlparse
-import httplib
+import urllib.parse
+import http.client
 
 
 class RuntimeLock():
@@ -36,7 +36,7 @@ class RuntimeLock():
         file = open(name, 'w')
         try:
             fcntl.lockf(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except IOError, e:
+        except IOError as e:
             import errno
             if e.errno in (errno.EACCES, errno.EAGAIN):
                 raise
@@ -83,7 +83,7 @@ def json_load_file(file):
     with open(file) as f:
         try:
             return json.load(f)
-        except ValueError, e:
+        except ValueError as e:
             e.args += (file,)
             raise
 
@@ -93,7 +93,7 @@ def dict_merge(s, m):
     if not isinstance(m, dict):
         return m
     out = copy.deepcopy(s)
-    for k, v in m.items():
+    for k, v in list(m.items()):
         if k in out and isinstance(out[k], dict):
             out[k] = dict_merge(out[k], v)
         else:
@@ -208,7 +208,7 @@ def load_config(config_dir):
         sources_config = dict_merge(sources_config, json_load_file(file))
 
     # Check for required sources options
-    for s in sources_config.keys():
+    for s in list(sources_config.keys()):
         if 'path' not in sources_config[s]:
             del sources_config[s]
 
@@ -359,25 +359,25 @@ def migrate_configs(config):
 
 
 def api_call(api_url, cmd, post_data, timeout=5):
-    url = urlparse.urlparse(api_url)
+    url = urllib.parse.urlparse(api_url)
     if url.scheme == 'https':
-        h = httplib.HTTPSConnection(url.netloc, timeout=timeout)
+        h = http.client.HTTPSConnection(url.netloc, timeout=timeout)
     else:
-        h = httplib.HTTPConnection(url.netloc, timeout=timeout)
+        h = http.client.HTTPConnection(url.netloc, timeout=timeout)
     out = json.dumps(post_data)
     h.putrequest('POST', '%s/%s' % (url.path, cmd))
     h.putheader('Content-Type', 'application/json')
     h.putheader('Content-Length', len(out))
     h.putheader('Accept', 'application/json')
     h.endheaders()
-    h.send(out)
+    h.send(out.encode('UTF-8'))
 
     res = h.getresponse()
-    if not res.status == httplib.OK:
+    if not res.status == http.client.OK:
         raise Exception('Received error %d (%s) from API server' % (res.status, res.reason))
     if not res.getheader('content-type') == 'application/json':
         raise Exception('Received invalid reply from API server')
     try:
-        return json.load(res)
+        return json.loads(res.read().decode('UTF-8'))
     except ValueError:
         raise Exception('Received invalid reply from API server')
