@@ -89,10 +89,12 @@ def write_conf_files(config):
         f.write(built_rsyncd_secrets)
 
 
-def restart_services():
-    # Restart rsyncd
-    if not subprocess.call(['service', 'turku-agent-rsyncd', 'restart']) == 0:
-        subprocess.check_call(['service', 'turku-agent-rsyncd', 'start'])
+def start_services():
+    # Start rsyncd if it isn't already running.
+    # Note that we do *not* need to reload rsyncd when changing rsyncd.conf,
+    # as it rereads it on every client connection; but we may need to start
+    # it as it won't start if its configuration file doesn't exist.
+    subprocess.check_call(['service', 'turku-agent-rsyncd', 'start'])
 
 
 def send_config(config):
@@ -153,6 +155,6 @@ def main():
             raise
         logging.exception(e)
         return 1
-    restart_services()
+    start_services()
 
     lock.close()
