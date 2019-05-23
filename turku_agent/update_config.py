@@ -89,11 +89,30 @@ def write_conf_files(config):
         f.write(built_rsyncd_secrets)
 
 
+def init_is_upstart():
+    try:
+        return 'upstart' in subprocess.check_output(
+            ['initctl', 'version'],
+            stderr=subprocess.DEVNULL, universal_newlines=True)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return False
+
+
 def start_services():
     # Start rsyncd if it isn't already running.
     # Note that we do *not* need to reload rsyncd when changing rsyncd.conf,
     # as it rereads it on every client connection; but we may need to start
     # it as it won't start if its configuration file doesn't exist.
+    if init_is_upstart():
+        # With Upstart, start will fail if the service is already running,
+        # so we need to check for that first.
+        try:
+            if 'start/running' in subprocess.check_output(
+                    ['status', 'turku-agent-rsyncd'],
+                    stderr=subprocess.STDOUT, universal_newlines=True):
+                return
+        except subprocess.CalledProcessError:
+            pass
     subprocess.check_call(['service', 'turku-agent-rsyncd', 'start'])
 
 
