@@ -23,7 +23,7 @@ case "$1" in
   start)
     log_daemon_msg "Starting turku rsync daemon" "turku-agent-rsyncd"
     start-stop-daemon --start --quiet --background --make-pidfile \
-      --pidfile $PID_FILE --exec /usr/bin/env -- turku-agent-rsyncd-wrapper
+      --pidfile $PID_FILE --startas /usr/bin/env -- turku-agent-rsyncd-wrapper
     log_end_msg $?
     ;;
   stop)
