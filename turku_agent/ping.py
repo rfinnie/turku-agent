@@ -40,9 +40,9 @@ def parse_args():
 
 def call_ssh(config, storage, ssh_req):
     # Write the server host public key
-    t = tempfile.NamedTemporaryFile()
+    t = tempfile.NamedTemporaryFile(mode='w+', encoding='UTF-8')
     for key in storage['ssh_ping_host_keys']:
-        t.write(('%s %s\n' % (storage['ssh_ping_host'], key)).encode('UTF-8'))
+        t.write('%s %s\n' % (storage['ssh_ping_host'], key))
     t.flush()
 
     # Call ssh
@@ -60,10 +60,10 @@ def call_ssh(config, storage, ssh_req):
         storage['ssh_ping_host'],
         'turku-ping-remote',
     ]
-    p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE)
+    p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE, encoding='UTF-8')
 
     # Write the ssh request
-    p.stdin.write((json.dumps(ssh_req) + '\n.\n').encode('UTF-8'))
+    p.stdin.write(json.dumps(ssh_req) + '\n.\n')
     p.stdin.flush()
 
     # Wait for the server to close the SSH connection
