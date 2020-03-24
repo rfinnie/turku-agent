@@ -160,6 +160,11 @@ def load_config(config_dir):
     if 'ssh_command' not in config:
         config['ssh_command'] = ['ssh']
 
+    # If a go/no-go program is defined, run it and only go if it exits 0.
+    # Type: String (program with no args) or list (program first, optional arguments after)
+    if 'gonogo_program' not in config:
+        config['gonogo_program'] = None
+
     var_sources_d = os.path.join(config['var_dir'], 'sources.d')
 
     # Validate the unit name

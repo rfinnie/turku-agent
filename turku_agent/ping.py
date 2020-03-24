@@ -19,6 +19,7 @@
 import os
 import json
 import random
+import shlex
 import subprocess
 import tempfile
 import time
@@ -34,7 +35,8 @@ def parse_args():
     parser.add_argument('--wait', '-w', type=float)
     parser.add_argument('--restore', action='store_true')
     parser.add_argument('--restore-storage', type=str, default=None)
-    parser.add_argument('--gonogo-program', type=str, default=None)
+    parser.add_argument('--gonogo-program', type=str, default=None,
+                        help='Go/no-go program run each time to determine whether to ping')
     return parser.parse_args()
 
 
@@ -93,9 +95,21 @@ def main():
         return
 
     # If a go/no-go program is defined, run it and only go if it exits 0.
-    if args.gonogo_program is not None:
+    # Example: prevent backups during high-load for sensitive systems:
+    #   ['check_load', '-c', '1,5,15']
+    gonogo_program = args.gonogo_program if args.gonogo_program else config['gonogo_program']
+    if isinstance(gonogo_program, (list, tuple)):
+        # List, program name first, optional arguments after
+        gonogo_program_and_args = list(gonogo_program)
+    elif isinstance(gonogo_program, str):
+        # String, shlex split it
+        gonogo_program_and_args = shlex.split(gonogo_program)
+    else:
+        # None
+        gonogo_program_and_args = []
+    if gonogo_program_and_args:
         try:
-            subprocess.check_call([args.gonogo_program])
+            subprocess.check_call(gonogo_program_and_args)
         except (subprocess.CalledProcessError, OSError):
             return
 
