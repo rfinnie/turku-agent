@@ -62,10 +62,10 @@ def call_ssh(config, storage, ssh_req):
         storage['ssh_ping_host'],
         'turku-ping-remote',
     ]
-    p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE, encoding='UTF-8')
+    p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE)
 
     # Write the ssh request
-    p.stdin.write(json.dumps(ssh_req) + '\n.\n')
+    p.stdin.write((json.dumps(ssh_req) + '\n.\n').encode('UTF-8'))
     p.stdin.flush()
 
     # Wait for the server to close the SSH connection
