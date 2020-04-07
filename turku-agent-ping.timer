@@ -1,14 +1,10 @@
 [Unit]
 Description=turku-agent-ping
-DefaultDependencies=no
-Wants=network-online.target
-After=network-online.target
-After=time-sync.target
 
 [Timer]
-OnCalendar=*:0/5
+OnUnitActiveSec=5m
 RandomizedDelaySec=5m
-Persistent=true
+OnStartupSec=15m
 
 [Install]
 WantedBy=timers.target
