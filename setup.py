@@ -18,22 +18,22 @@
 import sys
 from setuptools import setup
 
-assert(sys.version_info > (3, 4))
+assert sys.version_info > (3, 4)
 
 
 setup(
-    name='turku_agent',
-    description='Turku backups - client agent',
-    version='0.2.0',
-    author='Ryan Finnie',
-    author_email='ryan.finnie@canonical.com',
-    url='https://launchpad.net/turku',
-    packages=['turku_agent'],
+    name="turku_agent",
+    description="Turku backups - client agent",
+    version="0.2.0",
+    author="Ryan Finnie",
+    author_email="ryan.finnie@canonical.com",
+    url="https://launchpad.net/turku",
+    packages=["turku_agent"],
     entry_points={
-        'console_scripts': [
-            'turku-agent-ping = turku_agent.ping:main',
-            'turku-agent-rsyncd-wrapper = turku_agent.rsyncd_wrapper:main',
-            'turku-update-config = turku_agent.update_config:main',
-        ],
+        "console_scripts": [
+            "turku-agent-ping = turku_agent.ping:main",
+            "turku-agent-rsyncd-wrapper = turku_agent.rsyncd_wrapper:main",
+            "turku-update-config = turku_agent.update_config:main",
+        ]
     },
 )
