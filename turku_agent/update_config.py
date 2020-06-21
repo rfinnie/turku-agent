@@ -44,8 +44,8 @@ def write_conf_files(config):
         "address = %s\n" % config["rsyncd_local_address"]
         + "port = %d\n" % config["rsyncd_local_port"]
         + "log file = /dev/stdout\n"
-        + "uid = root\n"
-        + "gid = root\n"
+        + "uid = %s\n" % config["rsyncd_user"]
+        + "gid = %s\n" % config["rsyncd_group"]
         + "list = false\n\n"
     )
     rsyncd_secrets = []
@@ -98,24 +98,43 @@ def init_is_upstart():
         return False
 
 
-def start_services():
-    # Start rsyncd if it isn't already running.
-    # Note that we do *not* need to reload rsyncd when changing rsyncd.conf,
-    # as it rereads it on every client connection; but we may need to start
-    # it as it won't start if its configuration file doesn't exist.
+def start_services(service_name="turku-agent-rsyncd"):
+    """Start turku services (rsyncd) if not already running
+
+    Note that we do *not* need to reload rsyncd when changing rsyncd.conf,
+    as it rereads it on every client connection; but we may need to start
+    it as it won't start if its configuration file doesn't exist.
+    """
     if init_is_upstart():
         # With Upstart, start will fail if the service is already running,
         # so we need to check for that first.
         try:
             if "start/running" in subprocess.check_output(
-                ["status", "turku-agent-rsyncd"],
+                ["status", service_name],
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
             ):
                 return
         except subprocess.CalledProcessError:
             pass
-    subprocess.check_call(["service", "turku-agent-rsyncd", "start"])
+    else:
+        # Check status of rsyncd.
+        # All known inits (except Upstart, see above), given "service
+        # $SERVICE status", will exit 0 if started, but >0 if not.
+        # Most inits will treat "service $STATUS start" as idempotent
+        # and silently ignore the start (and exit 0) if already started.
+        # However, FreeBSD's rc.d fails hard if started, so let's always
+        # check status (unless we're Upstart).
+        try:
+            subprocess.check_call(
+                ["service", service_name, "status"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return
+        except subprocess.CalledProcessError:
+            pass
+    subprocess.check_call(["service", service_name, "start"])
 
 
 def send_config(config):
@@ -176,6 +195,7 @@ def main():
             raise
         logging.exception(e)
         return 1
-    start_services()
+    if config["rsyncd_service_name"] is not None:
+        start_services(config["rsyncd_service_name"])
 
     lock.close()

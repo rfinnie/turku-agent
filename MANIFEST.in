@@ -9,6 +9,7 @@ include turku-agent-ping.service
 include turku-agent-ping.timer
 include turku-agent-rsyncd.conf
 include turku-agent-rsyncd.init-debian
+include turku_agent_rsyncd.rc.d-freebsd
 include turku-agent-rsyncd.service
 include turku-agent-rsyncd-wrapper
 include turku-update-config
