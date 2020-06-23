@@ -29,6 +29,7 @@ setup(
     author_email="ryan.finnie@canonical.com",
     url="https://launchpad.net/turku",
     packages=["turku_agent"],
+    install_requires=["requests"],
     entry_points={
         "console_scripts": [
             "turku-agent-ping = turku_agent.ping:main",
