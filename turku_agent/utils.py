@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Turku backups - client agent
 # Copyright 2015 Canonical Ltd.
 #
@@ -15,32 +13,34 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import uuid
-import string
-import random
+import copy
+import http.client
 import json
 import os
-import copy
-import subprocess
 import platform
+import random
+import string
+import subprocess
 import urllib.parse
-import http.client
+import uuid
 
 
-class RuntimeLock():
+class RuntimeLock:
     name = None
     file = None
 
     def __init__(self, name):
         import fcntl
-        file = open(name, 'w')
+
+        file = open(name, "w")
         try:
             fcntl.lockf(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError as e:
             import errno
+
             if e.errno in (errno.EACCES, errno.EAGAIN):
                 raise
-        file.write('%10s\n' % os.getpid())
+        file.write("%10s\n" % os.getpid())
         file.flush()
         file.seek(0)
         self.name = name
@@ -71,12 +71,12 @@ def acquire_lock(name):
 
 def json_dump_p(obj, f):
     """Calls json.dump with standard (pretty) formatting"""
-    return json.dump(obj, f, sort_keys=True, indent=4, separators=(',', ': '))
+    return json.dump(obj, f, sort_keys=True, indent=4, separators=(",", ": "))
 
 
 def json_dumps_p(obj):
     """Calls json.dumps with standard (pretty) formatting"""
-    return json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': '))
+    return json.dumps(obj, sort_keys=True, indent=4, separators=(",", ": "))
 
 
 def json_load_file(file):
@@ -103,10 +103,10 @@ def dict_merge(s, m):
 
 def load_config(config_dir):
     config = {}
-    config['config_dir'] = config_dir
+    config["config_dir"] = config_dir
 
-    config_d = os.path.join(config['config_dir'], 'config.d')
-    sources_d = os.path.join(config['config_dir'], 'sources.d')
+    config_d = os.path.join(config["config_dir"], "config.d")
+    sources_d = os.path.join(config["config_dir"], "sources.d")
 
     # Merge in config.d/*.json to the root level
     config_files = []
@@ -114,7 +114,7 @@ def load_config(config_dir):
         config_files = [
             os.path.join(config_d, fn)
             for fn in os.listdir(config_d)
-            if fn.endswith('.json')
+            if fn.endswith(".json")
             and os.path.isfile(os.path.join(config_d, fn))
             and os.access(os.path.join(config_d, fn), os.R_OK)
         ]
@@ -122,10 +122,10 @@ def load_config(config_dir):
     for file in config_files:
         config = dict_merge(config, json_load_file(file))
 
-    if 'var_dir' not in config:
-        config['var_dir'] = '/var/lib/turku-agent'
+    if "var_dir" not in config:
+        config["var_dir"] = "/var/lib/turku-agent"
 
-    var_config_d = os.path.join(config['var_dir'], 'config.d')
+    var_config_d = os.path.join(config["var_dir"], "config.d")
 
     # Load /var config.d files
     var_config = {}
@@ -134,7 +134,7 @@ def load_config(config_dir):
         var_config_files = [
             os.path.join(var_config_d, fn)
             for fn in os.listdir(var_config_d)
-            if fn.endswith('.json')
+            if fn.endswith(".json")
             and os.path.isfile(os.path.join(var_config_d, fn))
             and os.access(os.path.join(var_config_d, fn), os.R_OK)
         ]
@@ -145,40 +145,40 @@ def load_config(config_dir):
     var_config = dict_merge(var_config, config)
     config = var_config
 
-    if 'lock_dir' not in config:
-        config['lock_dir'] = '/var/lock'
+    if "lock_dir" not in config:
+        config["lock_dir"] = "/var/lock"
 
-    if 'rsyncd_command' not in config:
-        config['rsyncd_command'] = ['rsync']
+    if "rsyncd_command" not in config:
+        config["rsyncd_command"] = ["rsync"]
 
-    if 'rsyncd_local_address' not in config:
-        config['rsyncd_local_address'] = '127.0.0.1'
+    if "rsyncd_local_address" not in config:
+        config["rsyncd_local_address"] = "127.0.0.1"
 
-    if 'rsyncd_local_port' not in config:
-        config['rsyncd_local_port'] = 27873
+    if "rsyncd_local_port" not in config:
+        config["rsyncd_local_port"] = 27873
 
-    if 'ssh_command' not in config:
-        config['ssh_command'] = ['ssh']
+    if "ssh_command" not in config:
+        config["ssh_command"] = ["ssh"]
 
     # If a go/no-go program is defined, run it and only go if it exits 0.
     # Type: String (program with no args) or list (program first, optional arguments after)
-    if 'gonogo_program' not in config:
-        config['gonogo_program'] = None
+    if "gonogo_program" not in config:
+        config["gonogo_program"] = None
 
-    var_sources_d = os.path.join(config['var_dir'], 'sources.d')
+    var_sources_d = os.path.join(config["var_dir"], "sources.d")
 
     # Validate the unit name
-    if 'unit_name' not in config:
-        config['unit_name'] = platform.node()
+    if "unit_name" not in config:
+        config["unit_name"] = platform.node()
         # If this isn't in the on-disk config, don't write it; just
         # generate it every time
 
     # Pull the SSH public key
-    if os.path.isfile(os.path.join(config['var_dir'], 'ssh_key.pub')):
-        with open(os.path.join(config['var_dir'], 'ssh_key.pub')) as f:
-            config['ssh_public_key'] = f.read().rstrip()
-        config['ssh_public_key_file'] = os.path.join(config['var_dir'], 'ssh_key.pub')
-        config['ssh_private_key_file'] = os.path.join(config['var_dir'], 'ssh_key')
+    if os.path.isfile(os.path.join(config["var_dir"], "ssh_key.pub")):
+        with open(os.path.join(config["var_dir"], "ssh_key.pub")) as f:
+            config["ssh_public_key"] = f.read().rstrip()
+        config["ssh_public_key_file"] = os.path.join(config["var_dir"], "ssh_key.pub")
+        config["ssh_private_key_file"] = os.path.join(config["var_dir"], "ssh_key")
 
     sources_config = {}
     # Merge in sources.d/*.json to the sources dict
@@ -187,7 +187,7 @@ def load_config(config_dir):
         sources_files = [
             os.path.join(sources_d, fn)
             for fn in os.listdir(sources_d)
-            if fn.endswith('.json')
+            if fn.endswith(".json")
             and os.path.isfile(os.path.join(sources_d, fn))
             and os.access(os.path.join(sources_d, fn), os.R_OK)
         ]
@@ -197,7 +197,7 @@ def load_config(config_dir):
         var_sources_files = [
             os.path.join(var_sources_d, fn)
             for fn in os.listdir(var_sources_d)
-            if fn.endswith('.json')
+            if fn.endswith(".json")
             and os.path.isfile(os.path.join(var_sources_d, fn))
             and os.access(os.path.join(var_sources_d, fn), os.R_OK)
         ]
@@ -208,19 +208,19 @@ def load_config(config_dir):
 
     # Check for required sources options
     for s in list(sources_config.keys()):
-        if 'path' not in sources_config[s]:
+        if "path" not in sources_config[s]:
             del sources_config[s]
 
-    config['sources'] = sources_config
+    config["sources"] = sources_config
 
     return config
 
 
 def fill_config(config):
-    config_d = os.path.join(config['config_dir'], 'config.d')
-    sources_d = os.path.join(config['config_dir'], 'sources.d')
-    var_config_d = os.path.join(config['var_dir'], 'config.d')
-    var_sources_d = os.path.join(config['var_dir'], 'sources.d')
+    config_d = os.path.join(config["config_dir"], "config.d")
+    sources_d = os.path.join(config["config_dir"], "sources.d")
+    var_config_d = os.path.join(config["var_dir"], "config.d")
+    var_sources_d = os.path.join(config["var_dir"], "sources.d")
 
     # Create required directories
     for d in (config_d, sources_d, var_config_d, var_sources_d):
@@ -229,106 +229,122 @@ def fill_config(config):
 
     # Validate the machine UUID/secret
     write_uuid_data = False
-    if 'machine_uuid' not in config:
-        config['machine_uuid'] = str(uuid.uuid4())
+    if "machine_uuid" not in config:
+        config["machine_uuid"] = str(uuid.uuid4())
         write_uuid_data = True
-    if 'machine_secret' not in config:
-        config['machine_secret'] = ''.join(
-            random.choice(string.ascii_letters + string.digits)
-            for i in range(30)
+    if "machine_secret" not in config:
+        config["machine_secret"] = "".join(
+            random.choice(string.ascii_letters + string.digits) for i in range(30)
         )
         write_uuid_data = True
     # Write out the machine UUID/secret if needed
     if write_uuid_data:
-        with open(os.path.join(var_config_d, '10-machine_uuid.json'), 'w') as f:
+        with open(os.path.join(var_config_d, "10-machine_uuid.json"), "w") as f:
             os.fchmod(f.fileno(), 0o600)
-            json_dump_p({
-                'machine_uuid': config['machine_uuid'],
-                'machine_secret': config['machine_secret'],
-            }, f)
+            json_dump_p(
+                {
+                    "machine_uuid": config["machine_uuid"],
+                    "machine_secret": config["machine_secret"],
+                },
+                f,
+            )
 
     # Restoration configuration
     write_restore_data = False
-    if 'restore_path' not in config:
-        config['restore_path'] = '/var/backups/turku-agent/restore'
+    if "restore_path" not in config:
+        config["restore_path"] = "/var/backups/turku-agent/restore"
         write_restore_data = True
-    if 'restore_module' not in config:
-        config['restore_module'] = 'turku-restore'
+    if "restore_module" not in config:
+        config["restore_module"] = "turku-restore"
         write_restore_data = True
-    if 'restore_username' not in config:
-        config['restore_username'] = str(uuid.uuid4())
+    if "restore_username" not in config:
+        config["restore_username"] = str(uuid.uuid4())
         write_restore_data = True
-    if 'restore_password' not in config:
-        config['restore_password'] = ''.join(
-            random.choice(string.ascii_letters + string.digits)
-            for i in range(30)
+    if "restore_password" not in config:
+        config["restore_password"] = "".join(
+            random.choice(string.ascii_letters + string.digits) for i in range(30)
         )
         write_restore_data = True
     if write_restore_data:
-        with open(os.path.join(var_config_d, '10-restore.json'), 'w') as f:
+        with open(os.path.join(var_config_d, "10-restore.json"), "w") as f:
             os.fchmod(f.fileno(), 0o600)
             restore_out = {
-                'restore_path': config['restore_path'],
-                'restore_module': config['restore_module'],
-                'restore_username': config['restore_username'],
-                'restore_password': config['restore_password'],
+                "restore_path": config["restore_path"],
+                "restore_module": config["restore_module"],
+                "restore_username": config["restore_username"],
+                "restore_password": config["restore_password"],
             }
             json_dump_p(restore_out, f)
-    if not os.path.isdir(config['restore_path']):
-        os.makedirs(config['restore_path'])
+    if not os.path.isdir(config["restore_path"]):
+        os.makedirs(config["restore_path"])
 
     # Generate the SSH keypair if it doesn't exist
-    if 'ssh_private_key_file' not in config:
-        subprocess.check_call([
-            'ssh-keygen', '-t', 'rsa', '-N', '', '-C', 'turku',
-            '-f', os.path.join(config['var_dir'], 'ssh_key')
-        ])
-        with open(os.path.join(config['var_dir'], 'ssh_key.pub')) as f:
-            config['ssh_public_key'] = f.read().rstrip()
-        config['ssh_public_key_file'] = os.path.join(config['var_dir'], 'ssh_key.pub')
-        config['ssh_private_key_file'] = os.path.join(config['var_dir'], 'ssh_key')
+    if "ssh_private_key_file" not in config:
+        subprocess.check_call(
+            [
+                "ssh-keygen",
+                "-t",
+                "rsa",
+                "-N",
+                "",
+                "-C",
+                "turku",
+                "-f",
+                os.path.join(config["var_dir"], "ssh_key"),
+            ]
+        )
+        with open(os.path.join(config["var_dir"], "ssh_key.pub")) as f:
+            config["ssh_public_key"] = f.read().rstrip()
+        config["ssh_public_key_file"] = os.path.join(config["var_dir"], "ssh_key.pub")
+        config["ssh_private_key_file"] = os.path.join(config["var_dir"], "ssh_key")
 
-    for s in config['sources']:
+    for s in config["sources"]:
         # Check for missing usernames/passwords
-        if not ('username' in config['sources'][s] or 'password' in config['sources'][s]):
-            sources_secrets_d = os.path.join(config['config_dir'], 'sources_secrets.d')
-            if 'username' not in config['sources'][s]:
-                config['sources'][s]['username'] = str(uuid.uuid4())
-            if 'password' not in config['sources'][s]:
-                config['sources'][s]['password'] = ''.join(
+        if not (
+            "username" in config["sources"][s] or "password" in config["sources"][s]
+        ):
+            if "username" not in config["sources"][s]:
+                config["sources"][s]["username"] = str(uuid.uuid4())
+            if "password" not in config["sources"][s]:
+                config["sources"][s]["password"] = "".join(
                     random.choice(string.ascii_letters + string.digits)
                     for i in range(30)
                 )
-            with open(os.path.join(var_sources_d, '10-' + s + '.json'), 'w') as f:
+            with open(os.path.join(var_sources_d, "10-" + s + ".json"), "w") as f:
                 os.fchmod(f.fileno(), 0o600)
-                json_dump_p({
-                    s: {
-                        'username': config['sources'][s]['username'],
-                        'password': config['sources'][s]['password'],
-                    }
-                }, f)
+                json_dump_p(
+                    {
+                        s: {
+                            "username": config["sources"][s]["username"],
+                            "password": config["sources"][s]["password"],
+                        }
+                    },
+                    f,
+                )
 
 
 def api_call(api_url, cmd, post_data, timeout=5):
     url = urllib.parse.urlparse(api_url)
-    if url.scheme == 'https':
+    if url.scheme == "https":
         h = http.client.HTTPSConnection(url.netloc, timeout=timeout)
     else:
         h = http.client.HTTPConnection(url.netloc, timeout=timeout)
     out = json.dumps(post_data)
-    h.putrequest('POST', '%s/%s' % (url.path, cmd))
-    h.putheader('Content-Type', 'application/json')
-    h.putheader('Content-Length', len(out))
-    h.putheader('Accept', 'application/json')
+    h.putrequest("POST", "%s/%s" % (url.path, cmd))
+    h.putheader("Content-Type", "application/json")
+    h.putheader("Content-Length", len(out))
+    h.putheader("Accept", "application/json")
     h.endheaders()
-    h.send(out.encode('UTF-8'))
+    h.send(out.encode("UTF-8"))
 
     res = h.getresponse()
     if not res.status == http.client.OK:
-        raise Exception('Received error %d (%s) from API server' % (res.status, res.reason))
-    if not res.getheader('content-type') == 'application/json':
-        raise Exception('Received invalid reply from API server')
+        raise Exception(
+            "Received error %d (%s) from API server" % (res.status, res.reason)
+        )
+    if not res.getheader("content-type") == "application/json":
+        raise Exception("Received invalid reply from API server")
     try:
-        return json.loads(res.read().decode('UTF-8'))
+        return json.loads(res.read().decode("UTF-8"))
     except ValueError:
-        raise Exception('Received invalid reply from API server')
+        raise Exception("Received invalid reply from API server")

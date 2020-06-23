@@ -16,6 +16,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+
 from .utils import load_config
 
 
@@ -23,9 +24,10 @@ def parse_args():
     import argparse
 
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--config-dir', '-c', type=str, default='/etc/turku-agent')
-    parser.add_argument('--detach', action='store_true')
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument("--config-dir", "-c", type=str, default="/etc/turku-agent")
+    parser.add_argument("--detach", action="store_true")
     return parser.parse_known_args()
 
 
@@ -33,10 +35,12 @@ def main():
     args, rest = parse_args()
 
     config = load_config(args.config_dir)
-    rsyncd_command = config['rsyncd_command']
+    rsyncd_command = config["rsyncd_command"]
     if not args.detach:
-        rsyncd_command.append('--no-detach')
-    rsyncd_command.append('--daemon')
-    rsyncd_command.append('--config=%s' % os.path.join(config['var_dir'], 'rsyncd.conf'))
+        rsyncd_command.append("--no-detach")
+    rsyncd_command.append("--daemon")
+    rsyncd_command.append(
+        "--config=%s" % os.path.join(config["var_dir"], "rsyncd.conf")
+    )
     rsyncd_command += rest
     os.execvp(rsyncd_command[0], rsyncd_command)
