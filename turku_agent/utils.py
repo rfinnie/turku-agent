@@ -172,6 +172,9 @@ def load_config(config_dir):
     if "ssh_command" not in config:
         config["ssh_command"] = ["ssh"]
 
+    if "ssh_key_type" not in config:
+        config["ssh_key_type"] = "ed25519"
+
     # If a go/no-go program is defined, run it and only go if it exits 0.
     # Type: String (program with no args) or list (program first, optional arguments after)
     if "gonogo_program" not in config:
@@ -296,7 +299,7 @@ def fill_config(config):
             [
                 "ssh-keygen",
                 "-t",
-                "rsa",
+                config["ssh_key_type"],
                 "-N",
                 "",
                 "-C",
