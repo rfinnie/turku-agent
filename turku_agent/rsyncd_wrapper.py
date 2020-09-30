@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import os
 
 from .utils import load_config
@@ -27,12 +28,15 @@ def parse_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument("--config-dir", "-c", type=str, default="/etc/turku-agent")
+    parser.add_argument("--debug", action="store_true")
     parser.add_argument("--detach", action="store_true")
     return parser.parse_known_args()
 
 
 def main():
     args, rest = parse_args()
+
+    logging.basicConfig(level=(logging.DEBUG if args.debug else logging.INFO))
 
     config = load_config(args.config_dir)
     rsyncd_command = config["rsyncd_command"]
@@ -43,4 +47,5 @@ def main():
         "--config=%s" % os.path.join(config["var_dir"], "rsyncd.conf")
     )
     rsyncd_command += rest
+    logging.debug("Executing: {}".format(rsyncd_command))
     os.execvp(rsyncd_command[0], rsyncd_command)

@@ -15,6 +15,7 @@
 
 
 import json
+import logging
 import os
 import random
 import shlex
@@ -32,6 +33,7 @@ def parse_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument("--config-dir", "-c", type=str, default="/etc/turku-agent")
+    parser.add_argument("--debug", action="store_true")
     parser.add_argument("--wait", "-w", type=float)
     parser.add_argument("--restore", action="store_true")
     parser.add_argument("--restore-storage", type=str, default=None)
@@ -79,9 +81,11 @@ def call_ssh(config, storage, ssh_req):
         storage["ssh_ping_host"],
         "turku-ping-remote",
     ]
+    logging.debug("SSH command running: {}".format(ssh_command))
     p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE)
 
     # Write the ssh request
+    logging.debug("SSH request: {}".format(ssh_req))
     p.stdin.write((json.dumps(ssh_req) + "\n.\n").encode("UTF-8"))
     p.stdin.flush()
 
@@ -98,17 +102,23 @@ def call_ssh(config, storage, ssh_req):
 def main():
     args = parse_args()
 
+    logging.basicConfig(level=(logging.DEBUG if args.debug else logging.INFO))
+
     # Sleep a random amount of time if requested
     if args.wait:
-        time.sleep(random.uniform(0, args.wait))
+        wait_time = random.uniform(0, args.wait)
+        logging.debug("Waiting {} seconds".format(wait_time))
+        time.sleep(wait_time)
 
     config = load_config(args.config_dir)
 
     # Basic checks
     for i in ("ssh_private_key_file", "machine_uuid", "machine_secret", "api_url"):
         if i not in config:
+            logging.debug("Missing required configs, exiting silently")
             return
     if not os.path.isfile(config["ssh_private_key_file"]):
+        logging.debug("Missing required configs, exiting silently")
         return
 
     # If a go/no-go program is defined, run it and only go if it exits 0.
@@ -128,8 +138,10 @@ def main():
         gonogo_program_and_args = []
     if gonogo_program_and_args:
         try:
+            logging.debug("Executing go/no-go: {}".format(gonogo_program_and_args))
             subprocess.check_call(gonogo_program_and_args)
         except (subprocess.CalledProcessError, OSError):
+            logging.debug("Go/no-go exited non-zero, exiting silently")
             return
 
     lock = acquire_lock(os.path.join(config["lock_dir"], "turku-agent-ping.lock"))

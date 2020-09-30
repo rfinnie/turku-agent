@@ -19,7 +19,7 @@ import random
 import subprocess
 import time
 
-from .utils import json_dumps_p, load_config, fill_config, acquire_lock, api_call
+from .utils import load_config, fill_config, acquire_lock, api_call
 
 
 class IncompleteConfigError(Exception):
@@ -178,6 +178,9 @@ def send_config(config):
 
 def main():
     args = parse_args()
+
+    logging.basicConfig(level=(logging.DEBUG if args.debug else logging.INFO))
+
     # Sleep a random amount of time if requested
     if args.wait:
         time.sleep(random.uniform(0, args.wait))
@@ -185,16 +188,8 @@ def main():
     config = load_config(args.config_dir)
     lock = acquire_lock(os.path.join(config["lock_dir"], "turku-update-config.lock"))
     fill_config(config)
-    if args.debug:
-        print(json_dumps_p(config))
     write_conf_files(config)
-    try:
-        send_config(config)
-    except Exception as e:
-        if args.debug:
-            raise
-        logging.exception(e)
-        return 1
+    send_config(config)
     if config["rsyncd_service_name"] is not None:
         start_services(config["rsyncd_service_name"])
 
