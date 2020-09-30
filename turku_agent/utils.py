@@ -14,7 +14,6 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import copy
-import http.client
 import json
 import os
 import platform
@@ -23,6 +22,8 @@ import string
 import subprocess
 import urllib.parse
 import uuid
+
+import requests
 
 
 class RuntimeLock:
@@ -335,27 +336,9 @@ def fill_config(config):
 
 
 def api_call(api_url, cmd, post_data, timeout=5):
-    url = urllib.parse.urlparse(api_url)
-    if url.scheme == "https":
-        h = http.client.HTTPSConnection(url.netloc, timeout=timeout)
-    else:
-        h = http.client.HTTPConnection(url.netloc, timeout=timeout)
-    out = json.dumps(post_data)
-    h.putrequest("POST", "%s/%s" % (url.path, cmd))
-    h.putheader("Content-Type", "application/json")
-    h.putheader("Content-Length", len(out))
-    h.putheader("Accept", "application/json")
-    h.endheaders()
-    h.send(out.encode("UTF-8"))
-
-    res = h.getresponse()
-    if not res.status == http.client.OK:
-        raise Exception(
-            "Received error %d (%s) from API server" % (res.status, res.reason)
-        )
-    if not res.getheader("content-type") == "application/json":
-        raise Exception("Received invalid reply from API server")
-    try:
-        return json.loads(res.read().decode("UTF-8"))
-    except ValueError:
-        raise Exception("Received invalid reply from API server")
+    """Turku API call client (3rd party Python requests)"""
+    url = urllib.parse.urljoin(api_url + "/", cmd)
+    headers = {"Accept": "application/json"}
+    r = requests.post(url, json=post_data, headers=headers, timeout=timeout)
+    r.raise_for_status()
+    return r.json()
