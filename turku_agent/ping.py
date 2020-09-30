@@ -219,8 +219,6 @@ def main():
     else:
         api_reply = api_call(config["api_url"], "agent_ping_checkin", api_out)
 
-        if "scheduled_sources" not in api_reply:
-            return
         sources_by_storage = {}
         for source_name in api_reply["machine"]["scheduled_sources"]:
             source = api_reply["machine"]["scheduled_sources"][source_name]
