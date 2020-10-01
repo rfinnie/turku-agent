@@ -201,10 +201,22 @@ def main():
             "action": "restore",
             "port": random.randint(49152, 65535),
         }
+        print("Machine UUID: {}".format(config["machine_uuid"]))
+        if config.get("environment_name"):
+            print("Machine environment: {}".format(config["environment_name"]))
+        if config.get("service_name"):
+            print("Machine service: {}".format(config["service_name"]))
+        if config.get("unit_name"):
+            print("Machine unit: {}".format(config["unit_name"]))
         print("Storage unit: %s" % storage["name"])
         if "restore_path" in config:
             print("Local destination path: %s" % config["restore_path"])
             print("Sample restore usage from storage unit:")
+            print(
+                "    cd /var/lib/turku-storage/machines/{}/".format(
+                    config["machine_uuid"]
+                )
+            )
             print(
                 "    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids ${P?}/ rsync://%s@127.0.0.1:%s/%s/"
                 % (
