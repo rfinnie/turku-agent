@@ -17,7 +17,7 @@ turku-agent is a standard Python 3 package.  It requires the following non-stdli
 
 and the following non-Python requirements:
 
-* rsync, for transferring files from turku-agent to turku-storage.  A turku-specific rsyncd, bound to localhost, will be maintained by turku-agent.
+* rsync, for transferring files from turku-agent to turku-storage.  A turku-specific rsyncd, bound to localhost, will be maintained by turku-agent and running during the lifetime of the turku-agent-ping backup.
 
 Several periodic programs will also need to be run; .cron or systemd .service/.timer examples are available in the source distribution (pick either cron or systemd).
 

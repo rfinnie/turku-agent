@@ -159,22 +159,8 @@ def load_config(config_dir):
     if "rsyncd_command" not in config:
         config["rsyncd_command"] = ["rsync"]
 
-    if "rsyncd_group" not in config:
-        config["rsyncd_group"] = "root"
-
     if "rsyncd_local_address" not in config:
         config["rsyncd_local_address"] = "127.0.0.1"
-
-    if "rsyncd_local_port" not in config:
-        config["rsyncd_local_port"] = 27873
-
-    # Service name of the init service's turku-agent rsyncd.
-    # If None (null in the config json), do not manage services.
-    if "rsyncd_service_name" not in config:
-        config["rsyncd_service_name"] = "turku-agent-rsyncd"
-
-    if "rsyncd_user" not in config:
-        config["rsyncd_user"] = "root"
 
     if "ssh_command" not in config:
         config["ssh_command"] = ["ssh"]

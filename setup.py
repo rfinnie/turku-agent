@@ -33,7 +33,6 @@ setup(
     entry_points={
         "console_scripts": [
             "turku-agent-ping = turku_agent.ping:main",
-            "turku-agent-rsyncd-wrapper = turku_agent.rsyncd_wrapper:main",
             "turku-update-config = turku_agent.update_config:main",
         ]
     },

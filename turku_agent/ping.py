@@ -46,6 +46,63 @@ def parse_args():
     return parser.parse_args()
 
 
+def call_rsyncd(config, ssh_req):
+    """Build configuration files and start rsyncd"""
+
+    # Build rsyncd.conf
+    built_rsyncd_conf = (
+        "address = {}\n" "port = {}\n" "log file = /dev/stdout\n" "list = false\n\n"
+    ).format(config["rsyncd_local_address"], ssh_req["port"])
+    rsyncd_secrets = []
+    rsyncd_secrets.append((config["restore_username"], config["restore_password"]))
+    built_rsyncd_conf += (
+        "[{}]\n"
+        "    path = {}\n"
+        "    auth users = {}\n"
+        "    secrets file = {}\n"
+        "    read only = false\n\n"
+    ).format(
+        config["restore_module"],
+        config["restore_path"],
+        config["restore_username"],
+        os.path.join(config["var_dir"], "rsyncd.secrets"),
+    )
+    for s in config["sources"]:
+        sd = config["sources"][s]
+        rsyncd_secrets.append((sd["username"], sd["password"]))
+        built_rsyncd_conf += (
+            "[{}]\n"
+            "    path = {}\n"
+            "    auth users = {}\n"
+            "    secrets file = {}\n"
+            "    read only = true\n\n"
+        ).format(
+            s,
+            sd["path"],
+            sd["username"],
+            os.path.join(config["var_dir"], "rsyncd.secrets"),
+        )
+    with open(os.path.join(config["var_dir"], "rsyncd.conf"), "w") as f:
+        f.write(built_rsyncd_conf)
+
+    # Build rsyncd.secrets
+    built_rsyncd_secrets = ""
+    for (username, password) in rsyncd_secrets:
+        built_rsyncd_secrets += username + ":" + password + "\n"
+    with open(os.path.join(config["var_dir"], "rsyncd.secrets"), "w") as f:
+        os.fchmod(f.fileno(), 0o600)
+        f.write(built_rsyncd_secrets)
+
+    rsyncd_command = config["rsyncd_command"]
+    rsyncd_command.append("--no-detach")
+    rsyncd_command.append("--daemon")
+    rsyncd_command.append(
+        "--config={}".format(os.path.join(config["var_dir"], "rsyncd.conf"))
+    )
+    logging.debug("Executing: {}".format(rsyncd_command))
+    return subprocess.Popen(rsyncd_command, stdin=subprocess.DEVNULL)
+
+
 def call_ssh(config, storage, ssh_req):
     # Write the server host public key
     t = tempfile.NamedTemporaryFile(mode="w+", encoding="UTF-8")
@@ -68,11 +125,8 @@ def call_ssh(config, storage, ssh_req):
         "-i",
         config["ssh_private_key_file"],
         "-R",
-        "%d:%s:%d"
-        % (
-            ssh_req["port"],
-            config["rsyncd_local_address"],
-            config["rsyncd_local_port"],
+        "{}:{}:{}".format(
+            ssh_req["port"], config["rsyncd_local_address"], ssh_req["port"]
         ),
         "-p",
         str(storage["ssh_ping_port"]),
@@ -227,7 +281,11 @@ def main():
                 )
             )
             print()
+        rsyncd_process = call_rsyncd(config, ssh_req)
+        time.sleep(3)
         call_ssh(config, storage, ssh_req)
+        rsyncd_process.terminate()
+        rsyncd_process.wait()
     else:
         api_reply = api_call(config["api_url"], "agent_ping_checkin", api_out)
 
@@ -254,11 +312,15 @@ def main():
                     "username": config["sources"][source]["username"],
                     "password": config["sources"][source]["password"],
                 }
+            rsyncd_process = call_rsyncd(config, ssh_req)
+            time.sleep(3)
             call_ssh(
                 config,
                 list(sources_by_storage[storage_name].values())[0]["storage"],
                 ssh_req,
             )
+            rsyncd_process.terminate()
+            rsyncd_process.wait()
 
     # Cleanup
     lock.close()
