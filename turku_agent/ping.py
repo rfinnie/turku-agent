@@ -51,7 +51,12 @@ def call_rsyncd(config, ssh_req):
 
     # Build rsyncd.conf
     built_rsyncd_conf = (
-        "address = {}\n" "port = {}\n" "log file = /dev/stdout\n" "list = false\n\n"
+        "address = {}\n"
+        "port = {}\n"
+        "log file = /dev/stdout\n"
+        "uid = root\n"
+        "gid = *\n"
+        "list = false\n\n"
     ).format(config["rsyncd_local_address"], ssh_req["port"])
     rsyncd_secrets = []
     rsyncd_secrets.append((config["restore_username"], config["restore_password"]))
