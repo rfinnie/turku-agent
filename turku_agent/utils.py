@@ -26,6 +26,11 @@ import uuid
 
 import requests
 
+try:
+    import yaml
+except ImportError as e:
+    yaml = e
+
 
 class RuntimeLock:
     name = None
@@ -76,13 +81,16 @@ def json_dump_p(obj, f):
     return json.dump(obj, f, sort_keys=True, indent=4, separators=(",", ": "))
 
 
-def json_load_file(file):
+def config_load_file(file):
+    """Load and return a .json or (if available) .yaml configuration file"""
     with open(file) as f:
         try:
-            return json.load(f)
-        except ValueError as e:
-            e.args += (file,)
-            raise
+            if file.endswith(".yaml") and not isinstance(yaml, ImportError):
+                return yaml.safe_load(f)
+            else:
+                return json.load(f)
+        except Exception:
+            raise ValueError("Error loading {}".format(file))
 
 
 def dict_merge(s, m):
@@ -105,26 +113,29 @@ def load_config(config_dir):
     config_d = os.path.join(config["config_dir"], "config.d")
     sources_d = os.path.join(config["config_dir"], "sources.d")
 
-    # Merge in config.d/*.json to the root level
+    # Merge in config.d files to the root level
     config_files = []
     if os.path.isdir(config_d):
         config_files = [
             os.path.join(config_d, fn)
             for fn in os.listdir(config_d)
-            if fn.endswith(".json")
+            if (
+                fn.endswith(".json")
+                or (fn.endswith(".yaml") and not isinstance(yaml, ImportError))
+            )
             and os.path.isfile(os.path.join(config_d, fn))
             and os.access(os.path.join(config_d, fn), os.R_OK)
         ]
     config_files.sort()
     for file in config_files:
-        config = dict_merge(config, json_load_file(file))
+        config = dict_merge(config, config_load_file(file))
 
     if "var_dir" not in config:
         config["var_dir"] = "/var/lib/turku-agent"
 
     var_config_d = os.path.join(config["var_dir"], "config.d")
 
-    # Load /var config.d files
+    # Load /var config.d files (.json only)
     var_config = {}
     var_config_files = []
     if os.path.isdir(var_config_d):
@@ -137,7 +148,7 @@ def load_config(config_dir):
         ]
     var_config_files.sort()
     for file in var_config_files:
-        var_config = dict_merge(var_config, json_load_file(file))
+        var_config = dict_merge(var_config, config_load_file(file))
     # /etc gets priority over /var
     var_config = dict_merge(var_config, config)
     config = var_config
@@ -192,30 +203,31 @@ def load_config(config_dir):
         config["ssh_private_key_file"] = os.path.join(config["var_dir"], "ssh_key")
 
     sources_config = {}
-    # Merge in sources.d/*.json to the sources dict
-    sources_files = []
-    if os.path.isdir(sources_d):
-        sources_files = [
-            os.path.join(sources_d, fn)
-            for fn in os.listdir(sources_d)
-            if fn.endswith(".json")
-            and os.path.isfile(os.path.join(sources_d, fn))
-            and os.access(os.path.join(sources_d, fn), os.R_OK)
-        ]
-    sources_files.sort()
-    var_sources_files = []
+    # Merge in sources.d files to the sources dict
+    # (.json/.yaml in /etc, .json only in /var)
+    sources_directories = []
     if os.path.isdir(var_sources_d):
-        var_sources_files = [
-            os.path.join(var_sources_d, fn)
-            for fn in os.listdir(var_sources_d)
-            if fn.endswith(".json")
-            and os.path.isfile(os.path.join(var_sources_d, fn))
-            and os.access(os.path.join(var_sources_d, fn), os.R_OK)
-        ]
-    var_sources_files.sort()
-    sources_files += var_sources_files
-    for file in sources_files:
-        sources_config = dict_merge(sources_config, json_load_file(file))
+        sources_directories.append(var_sources_d)
+    if os.path.isdir(sources_d):
+        sources_directories.append(sources_d)
+    for directory in sources_directories:
+        for file in sorted(
+            [
+                os.path.join(directory, fn)
+                for fn in os.listdir(directory)
+                if (
+                    fn.endswith(".json")
+                    or (
+                        fn.endswith(".yaml")
+                        and directory == sources_d
+                        and not isinstance(yaml, ImportError)
+                    )
+                )
+                and os.path.isfile(os.path.join(directory, fn))
+                and os.access(os.path.join(directory, fn), os.R_OK)
+            ]
+        ):
+            sources_config = dict_merge(sources_config, config_load_file(file))
 
     # Check for required sources options
     for s in list(sources_config.keys()):
