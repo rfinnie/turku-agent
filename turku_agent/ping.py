@@ -23,7 +23,7 @@ import subprocess
 import tempfile
 import time
 
-from .utils import load_config, acquire_lock, api_call
+from .utils import load_config, acquire_lock, api_call, SafeWrite
 
 
 def parse_args():
@@ -87,15 +87,16 @@ def call_rsyncd(config, ssh_req):
             sd["username"],
             os.path.join(config["var_dir"], "rsyncd.secrets"),
         )
-    with open(os.path.join(config["var_dir"], "rsyncd.conf"), "w") as f:
+    with SafeWrite(os.path.join(config["var_dir"], "rsyncd.conf")) as f:
         f.write(built_rsyncd_conf)
 
     # Build rsyncd.secrets
     built_rsyncd_secrets = ""
     for (username, password) in rsyncd_secrets:
         built_rsyncd_secrets += username + ":" + password + "\n"
-    with open(os.path.join(config["var_dir"], "rsyncd.secrets"), "w") as f:
-        os.fchmod(f.fileno(), 0o600)
+    with SafeWrite(
+        os.path.join(config["var_dir"], "rsyncd.secrets"), filemode=0o600
+    ) as f:
         f.write(built_rsyncd_secrets)
 
     rsyncd_command = config["rsyncd_command"]

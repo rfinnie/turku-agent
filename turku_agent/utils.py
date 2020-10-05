@@ -106,6 +106,43 @@ def dict_merge(s, m):
     return out
 
 
+class SafeWrite:
+    """(Try to) safely write files with minimum collision possibility"""
+
+    filename = None
+    temp_filename = None
+    file = None
+
+    def __init__(self, filename, filemode=None):
+        self.filename = filename
+        self.temp_filename = "{}.tmp{}~".format(self.filename, str(uuid.uuid4()))
+        self.file = open(self.temp_filename, "w")
+        if filemode is not None:
+            os.fchmod(self.file.fileno(), filemode)
+        for m in dir(self.file):
+            if m.startswith("_"):
+                continue
+            if m == "close":
+                continue
+            setattr(self, m, getattr(self.file, m))
+
+    def close(self):
+        if not self.file:
+            return
+        self.file.close()
+        self.file = None
+        os.rename(self.temp_filename, self.filename)
+
+    def __del__(self):
+        self.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc, value, tb):
+        self.close()
+
+
 def load_config(config_dir):
     config = {}
     config["config_dir"] = config_dir
@@ -248,8 +285,9 @@ def fill_config(config):
         write_uuid_data = True
     # Write out the machine UUID/secret if needed
     if write_uuid_data:
-        with open(os.path.join(var_config_d, "10-machine_uuid.json"), "w") as f:
-            os.fchmod(f.fileno(), 0o600)
+        with SafeWrite(
+            os.path.join(var_config_d, "10-machine_uuid.json"), filemode=0o600
+        ) as f:
             json_dump_p(
                 {
                     "machine_uuid": config["machine_uuid"],
@@ -275,8 +313,9 @@ def fill_config(config):
         )
         write_restore_data = True
     if write_restore_data:
-        with open(os.path.join(var_config_d, "10-restore.json"), "w") as f:
-            os.fchmod(f.fileno(), 0o600)
+        with SafeWrite(
+            os.path.join(var_config_d, "10-restore.json"), filemode=0o600
+        ) as f:
             restore_out = {
                 "restore_path": config["restore_path"],
                 "restore_module": config["restore_module"],
@@ -319,8 +358,9 @@ def fill_config(config):
                     random.choice(string.ascii_letters + string.digits)
                     for i in range(30)
                 )
-            with open(os.path.join(var_sources_d, "10-" + s + ".json"), "w") as f:
-                os.fchmod(f.fileno(), 0o600)
+            with SafeWrite(
+                os.path.join(var_sources_d, "10-" + s + ".json"), filemode=0o600
+            ) as f:
                 json_dump_p(
                     {
                         s: {
