@@ -191,7 +191,14 @@ def load_config(config_dir):
     config = var_config
 
     if "lock_dir" not in config:
-        config["lock_dir"] = "/var/lock"
+        if os.path.exists("/var/lock"):
+            config["lock_dir"] = "/var/lock"
+        elif os.path.exists("/run"):
+            config["lock_dir"] = "/run"
+        elif os.path.exists("/var/run"):
+            config["lock_dir"] = "/var/run"
+        else:
+            config["lock_dir"] = "/tmp"
 
     if "rsyncd_command" not in config:
         config["rsyncd_command"] = ["rsync"]
