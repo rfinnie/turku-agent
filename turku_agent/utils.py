@@ -203,8 +203,18 @@ def load_config(config_dir):
     if "rsyncd_command" not in config:
         config["rsyncd_command"] = ["rsync"]
 
+    # Should not be needed; automatically determined in recent rsyncd.
+    # However, macOS's outdated rsync will need "wheel"
+    if "rsyncd_group" not in config:
+        config["rsyncd_group"] = None
+
     if "rsyncd_local_address" not in config:
         config["rsyncd_local_address"] = "127.0.0.1"
+
+    # Should not be needed; automatically determined in recent rsyncd.
+    # However, macOS's outdated rsync will need "root"
+    if "rsyncd_user" not in config:
+        config["rsyncd_user"] = None
 
     if "ssh_command" not in config:
         config["ssh_command"] = ["ssh"]
