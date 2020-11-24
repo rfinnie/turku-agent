@@ -5,9 +5,9 @@ Turku is an agent-based backup system where the server doing the backups has no 
 
 Turku is comprised of the following components:
 
-* [turku-api](https://launchpad.net/turku/turku-api), a Django web application which acts as an API server and coordinator.
-* [turku-storage](https://launchpad.net/turku/turku-storage), an agent installed on the servers which do the actual backups.
-* [turku-agent](https://launchpad.net/turku/turku-agent), an agent installed on the machines to be backed up.
+* [turku-api](https://github.com/rfinnie/turku-api), a Django web application which acts as an API server and coordinator.
+* [turku-storage](https://github.com/rfinnie/turku-storage), an agent installed on the servers which do the actual backups.
+* [turku-agent](https://github.com/rfinnie/turku-agent), an agent installed on the machines to be backed up.
 
 ## Installation
 
@@ -23,7 +23,9 @@ Several periodic programs will also need to be run; .cron or systemd .service/.t
 
 ## Configuration
 
-Once installed, create `/etc/turku-agent/config.d/config.json` with the following information:
+Standard configuration is done with `.json` files and is supported in all installations.  Additionally, equivalent `.yaml` files are supported if the PyYAML package installed. In the following sections, `.json` examples will be provided.
+
+Once turku-agent is installed, create `/etc/turku-agent/config.d/config.json` with the following information:
 
 ```json
 {
@@ -64,6 +66,8 @@ Once configured, run the following to register the Machine unit and sync its bac
 sudo turku-update-config
 ```
 
+By default, every 12 hours turku-update-config will run to check in with turku-api and update its configuration, if needed.
+
 ## Running
 
 By default, every 5 minutes turku-agent-ping will check in with turku-api to see if there is anything to do.  If there is, turku-api gives turku-agent information about a turku-storage unit.  turku-agent SSHes to turku-storage and sets up a reverse tunnel, allowing turku-storage to contact turku-agent's local rsyncd and perform the backup.
@@ -89,3 +93,15 @@ Sample restore usage from storage unit:
 
 [2020-10-01 06:40:59,439 primary] INFO: Restore mode active on port 64951.  Good luck.
 ```
+
+## License
+
+Turku backups - client agent
+
+Copyright (C) 2015-2020 Canonical Ltd., Ryan Finnie and other contributors
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
