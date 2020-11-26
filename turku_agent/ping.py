@@ -60,8 +60,8 @@ def call_rsyncd(config, ssh_req):
     ).format(
         config["rsyncd_local_address"],
         ssh_req["port"],
-        config["rsyncd_user"] if config["rsyncd_user"] else "root",
-        config["rsyncd_group"] if config["rsyncd_group"] else "*",
+        config["rsyncd_user"],
+        config["rsyncd_group"],
     )
     rsyncd_secrets = []
     rsyncd_secrets.append((config["restore_username"], config["restore_password"]))
