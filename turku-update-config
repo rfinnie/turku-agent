@@ -3,7 +3,7 @@
 # Turku backups - client agent
 # Copyright (C) 2015-2020 Canonical Ltd., Ryan Finnie and other contributors
 #
-# SPDX-License-Identifer: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 import sys
 from turku_agent import update_config
