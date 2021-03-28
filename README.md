@@ -98,7 +98,7 @@ Sample restore usage from storage unit:
 
 Turku backups - client agent
 
-Copyright (C) 2015-2020 Canonical Ltd., Ryan Finnie and other contributors
+Copyright (C) 2015-2021 Canonical Ltd., Ryan Finnie and other contributors
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
