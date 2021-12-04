@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import copy
+import errno
+import fcntl
 import json
 import logging
 import os
@@ -11,6 +13,7 @@ import platform
 import random
 import string
 import subprocess
+import sys
 import urllib.parse
 import uuid
 
@@ -23,47 +26,55 @@ except ImportError as e:
 
 
 class RuntimeLock:
-    name = None
-    file = None
+    filename = None
+    fh = None
 
-    def __init__(self, name):
-        import fcntl
+    def __init__(self, name=None, lock_dir=None):
+        if name is None:
+            if sys.argv[0]:
+                name = os.path.basename(sys.argv[0])
+            else:
+                name = os.path.basename(__file__)
+        if lock_dir is None:
+            for dir in ("/run/lock", "/var/lock", "/run", "/var/run", "/tmp"):
+                if os.path.exists(dir):
+                    lock_dir = dir
+                    break
+            if lock_dir is None:
+                raise FileNotFoundError("Suitable lock directory not found")
+        filename = os.path.join(lock_dir, "{}.lock".format(name))
 
-        file = open(name, "w")
+        # Do not set fh to self.fh until lockf/flush/etc all succeed
+        fh = open(filename, "w")
         try:
-            fcntl.lockf(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.lockf(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError as e:
-            import errno
-
             if e.errno in (errno.EACCES, errno.EAGAIN):
                 raise
-        file.write("%10s\n" % os.getpid())
-        file.flush()
-        file.seek(0)
-        self.name = name
-        self.file = file
+        fh.write("%10s\n" % os.getpid())
+        fh.flush()
+        fh.seek(0)
+
+        self.fh = fh
+        self.filename = filename
 
     def close(self):
-        if self.file:
-            self.file.close()
-            self.file = None
-            os.unlink(self.name)
+        if self.fh:
+            self.fh.close()
+            self.fh = None
+            os.unlink(self.filename)
 
     def __del__(self):
         self.close()
 
     def __enter__(self):
-        self.file.__enter__()
+        self.fh.__enter__()
         return self
 
     def __exit__(self, exc, value, tb):
-        result = self.file.__exit__(exc, value, tb)
+        result = self.fh.__exit__(exc, value, tb)
         self.close()
         return result
-
-
-def acquire_lock(name):
-    return RuntimeLock(name)
 
 
 def json_dump_p(obj, f):
@@ -163,10 +174,7 @@ def load_config(config_dir):
     config = var_config
 
     if "lock_dir" not in config:
-        for dir in ("/run/lock", "/var/lock", "/run", "/var/run", "/tmp"):
-            if os.path.exists(dir):
-                config["lock_dir"] = dir
-                break
+        config["lock_dir"] = None  # Determine automatically
 
     if "rsyncd_command" not in config:
         config["rsyncd_command"] = ["rsync"]

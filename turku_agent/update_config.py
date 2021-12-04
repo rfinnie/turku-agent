@@ -4,11 +4,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import logging
-import os
 import random
 import time
 
-from .utils import load_config, fill_config, acquire_lock, api_call
+from .utils import load_config, fill_config, RuntimeLock, api_call
 
 
 class IncompleteConfigError(Exception):
@@ -76,7 +75,6 @@ def main():
         time.sleep(random.uniform(0, args.wait))
 
     config = load_config(args.config_dir)
-    lock = acquire_lock(os.path.join(config["lock_dir"], "turku-update-config.lock"))
-    fill_config(config)
-    send_config(config)
-    lock.close()
+    with RuntimeLock(lock_dir=config["lock_dir"]):
+        fill_config(config)
+        send_config(config)
