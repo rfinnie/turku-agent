@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 import time
 
-from .utils import load_config, RuntimeLock, api_call, safe_write
+from .utils import load_config, RuntimeLock, api_call
 
 
 def parse_args():
@@ -39,6 +39,8 @@ def call_rsyncd(config, ssh_req):
     """Build configuration files and start rsyncd"""
 
     # Build rsyncd.conf
+    rsyncd_fh = tempfile.NamedTemporaryFile(mode="w+", encoding="UTF-8")
+    secrets_fh = tempfile.NamedTemporaryFile(mode="w+", encoding="UTF-8")
     built_rsyncd_conf = (
         "address = {}\n"
         "port = {}\n"
@@ -64,7 +66,7 @@ def call_rsyncd(config, ssh_req):
         config["restore_module"],
         config["restore_path"],
         config["restore_username"],
-        os.path.join(config["var_dir"], "rsyncd.secrets"),
+        secrets_fh.name,
     )
     for s in config["sources"]:
         sd = config["sources"][s]
@@ -75,31 +77,31 @@ def call_rsyncd(config, ssh_req):
             "    auth users = {}\n"
             "    secrets file = {}\n"
             "    read only = true\n\n"
-        ).format(
-            s,
-            sd["path"],
-            sd["username"],
-            os.path.join(config["var_dir"], "rsyncd.secrets"),
-        )
-    with safe_write(os.path.join(config["var_dir"], "rsyncd.conf")) as f:
-        f.write(built_rsyncd_conf)
+        ).format(s, sd["path"], sd["username"], secrets_fh.name)
+    rsyncd_fh.write(built_rsyncd_conf)
+    rsyncd_fh.flush()
 
     # Build rsyncd.secrets
     built_rsyncd_secrets = ""
     for (username, password) in rsyncd_secrets:
         built_rsyncd_secrets += username + ":" + password + "\n"
-    with safe_write(os.path.join(config["var_dir"], "rsyncd.secrets")) as f:
-        os.fchmod(f.fileno(), 0o600)
-        f.write(built_rsyncd_secrets)
+    secrets_fh.write(built_rsyncd_secrets)
+    secrets_fh.flush()
 
     rsyncd_command = config["rsyncd_command"]
     rsyncd_command.append("--no-detach")
     rsyncd_command.append("--daemon")
-    rsyncd_command.append(
-        "--config={}".format(os.path.join(config["var_dir"], "rsyncd.conf"))
-    )
+    rsyncd_command.append("--config={}".format(rsyncd_fh.name))
     logging.debug("Executing: {}".format(rsyncd_command))
-    return subprocess.Popen(rsyncd_command, stdin=subprocess.DEVNULL)
+    process = subprocess.Popen(rsyncd_command, stdin=subprocess.DEVNULL)
+
+    # These are not (currently) used elsewhere, but are set within the
+    # subprocess so their destructor is not called until the process
+    # is complete.
+    setattr(process, "rsyncd_fh", rsyncd_fh)
+    setattr(process, "secrets_fh", secrets_fh)
+
+    return process
 
 
 def call_ssh(config, storage, ssh_req):

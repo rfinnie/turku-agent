@@ -359,6 +359,12 @@ def fill_config(config):
                     f,
                 )
 
+    # Clean up obsolete files, if they exist
+    for f in ("rsyncd.conf", "rsyncd.secrets"):
+        fn = os.path.join(config["var_dir"], f)
+        if os.path.exists(fn):
+            os.remove(fn)
+
 
 def api_call(api_url, cmd, post_data, timeout=5):
     """Turku API call client"""
