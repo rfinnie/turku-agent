@@ -34,7 +34,7 @@ class RuntimeLock:
             if sys.argv[0]:
                 name = os.path.basename(sys.argv[0])
             else:
-                name = os.path.basename(__file__)
+                name = __name__
         if lock_dir is None:
             for dir in ("/run/lock", "/var/lock", "/run", "/var/run", "/tmp"):
                 if os.path.exists(dir):
