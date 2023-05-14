@@ -23,25 +23,32 @@ def parse_args():
     parser.add_argument("--config-dir", "-c", type=str, default="/etc/turku-agent")
     parser.add_argument("--wait", "-w", type=float)
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--api-auth-name")
+    parser.add_argument("--api-auth-secret")
     return parser.parse_args()
 
 
-def send_config(config):
+def send_config(config, args):
     required_keys = ["api_url"]
-    if "api_auth" not in config:
-        required_keys += ["api_auth_name", "api_auth_secret"]
     for k in required_keys:
         if k not in config:
             raise IncompleteConfigError('Required config "%s" not found.' % k)
 
     api_out = {}
-    if ("api_auth_name" in config) and ("api_auth_secret" in config):
+    # API auth is only needed on initial machine registration
+    if args.api_auth_name and args.api_auth_secret:
+        # name/secret style, provided on command line
+        api_out["auth"] = {
+            "name": args.api_auth_name,
+            "secret": args.api_auth_secret,
+        }
+    elif ("api_auth_name" in config) and ("api_auth_secret" in config):
         # name/secret style
         api_out["auth"] = {
             "name": config["api_auth_name"],
             "secret": config["api_auth_secret"],
         }
-    else:
+    elif "api_auth" in config:
         # nameless secret style
         api_out["auth"] = config["api_auth"]
 
@@ -77,4 +84,4 @@ def main():
     config = load_config(args.config_dir)
     with RuntimeLock(lock_dir=config["lock_dir"]):
         fill_config(config)
-        send_config(config)
+        send_config(config, args)
