@@ -69,10 +69,9 @@ def call_rsyncd(config, ssh_req):
             config["restore_username"],
             secrets_fh.name,
         )
-    for s in config["sources"]:
+    for s, sd in config["sources"].items():
         if s not in ssh_req.get("sources", {}):
             continue
-        sd = config["sources"][s]
         sr = ssh_req["sources"][s]
         rsyncd_secrets.append((sr["username"], sr["password"]))
         built_rsyncd_conf += (
@@ -117,29 +116,23 @@ def call_ssh(config, storage, ssh_req):
 
     # Call ssh
     ssh_command = config["ssh_command"]
-    ssh_command += [
-        "-T",
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "UserKnownHostsFile={}".format(t.name),
-        "-o",
-        "StrictHostKeyChecking=yes",
-        "-o",
-        "CheckHostIP=no",
-        "-i",
-        config["ssh_private_key_file"],
-        "-R",
-        "{}:{}:{}".format(
-            ssh_req["port"], config["rsyncd_local_address"], ssh_req["port"]
-        ),
-        "-p",
-        str(storage["ssh_ping_port"]),
-        "-l",
-        storage["ssh_ping_user"],
-        storage["ssh_ping_host"],
-        "turku-ping-remote",
-    ]
+    ssh_command += (
+        ["-T"]
+        + ["-o", "BatchMode=yes"]
+        + ["-o", "UserKnownHostsFile={}".format(t.name)]
+        + ["-o", "StrictHostKeyChecking=yes"]
+        + ["-o", "CheckHostIP=no"]
+        + ["-i", config["ssh_private_key_file"]]
+        + [
+            "-R",
+            "{}:{}:{}".format(
+                ssh_req["port"], config["rsyncd_local_address"], ssh_req["port"]
+            ),
+        ]
+        + ["-p", str(storage["ssh_ping_port"])]
+        + ["-l", storage["ssh_ping_user"]]
+        + [storage["ssh_ping_host"], "turku-ping-remote"]
+    )
     logging.debug("SSH command running: {}".format(ssh_command))
     p = subprocess.Popen(ssh_command, stdin=subprocess.PIPE)
 
@@ -225,8 +218,7 @@ def main():
         (config["restore_username"], config["restore_password"]) = generate_up()
 
         sources_by_storage = {}
-        for source_name in api_reply["machine"]["sources"]:
-            source = api_reply["machine"]["sources"][source_name]
+        for source_name, source in api_reply["machine"]["sources"].items():
             if source_name not in config["sources"]:
                 continue
             if "storage" not in source:
@@ -239,9 +231,9 @@ def main():
             logging.error("Cannot find any appropraite sources.")
             return
         logging.info("This machine's sources are on the following storage units:")
-        for storage_name in sources_by_storage:
+        for storage_name, sources in sources_by_storage.items():
             logging.info("    {}".format(storage_name))
-            for source_name in sources_by_storage[storage_name]:
+            for source_name in sources:
                 logging.info("        {}".format(source_name))
         logging.info("")
         if len(sources_by_storage) == 1:
@@ -299,8 +291,7 @@ def main():
         api_reply = api_call(config["api_url"], "agent_ping_checkin", api_out)
 
         sources_by_storage = {}
-        for source_name in api_reply["machine"]["scheduled_sources"]:
-            source = api_reply["machine"]["scheduled_sources"][source_name]
+        for source_name, source in api_reply["machine"]["scheduled_sources"].items():
             if source_name not in config["sources"]:
                 continue
             if "storage" not in source:
@@ -309,14 +300,14 @@ def main():
                 sources_by_storage[source["storage"]["name"]] = {}
             sources_by_storage[source["storage"]["name"]][source_name] = source
 
-        for storage_name in sources_by_storage:
+        for storage_name, sources in sources_by_storage.items():
             ssh_req = {
                 "verbose": True,
                 "action": "checkin",
                 "port": random.randint(49152, 65535),
                 "sources": {},
             }
-            for source in sources_by_storage[storage_name]:
+            for source in sources:
                 u, p = generate_up()
                 ssh_req["sources"][source] = {
                     "username": u,
@@ -326,7 +317,7 @@ def main():
             time.sleep(3)
             call_ssh(
                 config,
-                list(sources_by_storage[storage_name].values())[0]["storage"],
+                list(sources.values())[0]["storage"],
                 ssh_req,
             )
             rsyncd_process.terminate()
