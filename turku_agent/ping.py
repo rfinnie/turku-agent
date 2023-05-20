@@ -112,7 +112,7 @@ def call_ssh(config, storage, ssh_req):
     # Write the server host public key
     t = tempfile.NamedTemporaryFile(mode="w+", encoding="UTF-8")
     for key in storage["ssh_ping_host_keys"]:
-        t.write("%s %s\n" % (storage["ssh_ping_host"], key))
+        t.write("{} {}\n".format(storage["ssh_ping_host"], key))
     t.flush()
 
     # Call ssh
@@ -122,7 +122,7 @@ def call_ssh(config, storage, ssh_req):
         "-o",
         "BatchMode=yes",
         "-o",
-        "UserKnownHostsFile=%s" % t.name,
+        "UserKnownHostsFile={}".format(t.name),
         "-o",
         "StrictHostKeyChecking=yes",
         "-o",
@@ -217,8 +217,8 @@ def main():
             api_out["machine"][b] = config[a]
 
     if restore_mode:
-        print("Entering restore mode.")
-        print()
+        logging.info("Entering restore mode.")
+        logging.info("")
         api_reply = api_call(config["api_url"], "agent_ping_restore", api_out)
 
         # Generare per-session restore username/password
@@ -236,24 +236,26 @@ def main():
             sources_by_storage[source["storage"]["name"]][source_name] = source
 
         if len(sources_by_storage) == 0:
-            print("Cannot find any appropraite sources.")
+            logging.error("Cannot find any appropraite sources.")
             return
-        print("This machine's sources are on the following storage units:")
+        logging.info("This machine's sources are on the following storage units:")
         for storage_name in sources_by_storage:
-            print("    %s" % storage_name)
+            logging.info("    {}".format(storage_name))
             for source_name in sources_by_storage[storage_name]:
-                print("        %s" % source_name)
-        print()
+                logging.info("        {}".format(source_name))
+        logging.info("")
         if len(sources_by_storage) == 1:
             storage = list(list(sources_by_storage.values())[0].values())[0]["storage"]
         elif args.restore_storage:
             if args.restore_storage in sources_by_storage:
                 storage = sources_by_storage[args.restore_storage]["storage"]
             else:
-                print('Cannot find appropriate storage "%s"' % args.restore_storage)
+                logging.error(
+                    'Cannot find appropriate storage "{}"'.format(args.restore_storage)
+                )
                 return
         else:
-            print(
+            logging.error(
                 "Multiple storages found.  Please use --restore-storage to specify one."
             )
             return
@@ -263,32 +265,31 @@ def main():
             "action": "restore",
             "port": random.randint(49152, 65535),
         }
-        print("Machine UUID: {}".format(config["machine_uuid"]))
+        logging.info("Machine UUID: {}".format(config["machine_uuid"]))
         if config.get("environment_name"):
-            print("Machine environment: {}".format(config["environment_name"]))
+            logging.info("Machine environment: {}".format(config["environment_name"]))
         if config.get("service_name"):
-            print("Machine service: {}".format(config["service_name"]))
+            logging.info("Machine service: {}".format(config["service_name"]))
         if config.get("unit_name"):
-            print("Machine unit: {}".format(config["unit_name"]))
-        print("Storage unit: %s" % storage["name"])
+            logging.info("Machine unit: {}".format(config["unit_name"]))
+        logging.info("Storage unit: {}".format(storage["name"]))
         if "restore_path" in config:
-            print("Local destination path: %s" % config["restore_path"])
-            print("Sample restore usage from storage unit:")
-            print(
+            logging.info("Local destination path: {}".format(config["restore_path"]))
+            logging.info("Sample restore usage from storage unit:")
+            logging.info(
                 "    cd /var/lib/turku-storage/machines/{}/".format(
                     config["machine_uuid"]
                 )
             )
-            print(
-                "    RSYNC_PASSWORD=%s rsync -avzP --numeric-ids ${P?}/ rsync://%s@127.0.0.1:%s/%s/"
-                % (
+            logging.info(
+                "    RSYNC_PASSWORD={} rsync -avzP --numeric-ids ${{P?}}/ rsync://{}@127.0.0.1:{}/{}/".format(
                     config["restore_password"],
                     config["restore_username"],
                     ssh_req["port"],
                     config["restore_module"],
                 )
             )
-            print()
+            logging.info("")
         rsyncd_process = call_rsyncd(config, ssh_req)
         time.sleep(3)
         call_ssh(config, storage, ssh_req)

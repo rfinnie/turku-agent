@@ -32,7 +32,7 @@ def send_config(config, args):
     required_keys = ["api_url"]
     for k in required_keys:
         if k not in config:
-            raise IncompleteConfigError('Required config "%s" not found.' % k)
+            raise IncompleteConfigError('Required config "{}" not found.'.format(k))
 
     api_out = {}
     # API auth is only needed on initial machine registration
