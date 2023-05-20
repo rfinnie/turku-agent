@@ -322,6 +322,8 @@ def fill_config(config):
         legacy_fn = os.path.join(var_sources_d, "10-" + s + ".json")
         if os.path.exists(legacy_fn):
             os.remove(legacy_fn)
+    if os.path.exists(var_sources_d) and not os.listdir(var_sources_d):
+        os.rmdir(var_sources_d)
 
     # Clean up obsolete files, if they exist
     for f in ("rsyncd.conf", "rsyncd.secrets"):
