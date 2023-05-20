@@ -126,6 +126,13 @@ def safe_write(file, **kwargs):
     return fh
 
 
+def generate_up():
+    return (
+        str(uuid.uuid4()),
+        "".join(random.choice(string.ascii_letters + string.digits) for i in range(30)),
+    )
+
+
 def load_config(config_dir):
     config = {}
     config["config_dir"] = config_dir
@@ -201,7 +208,11 @@ def load_config(config_dir):
     if "gonogo_program" not in config:
         config["gonogo_program"] = None
 
-    var_sources_d = os.path.join(config["var_dir"], "sources.d")
+    # Restoration configuration
+    if "restore_path" not in config:
+        config["restore_path"] = "/var/backups/turku-agent/restore"
+    if "restore_module" not in config:
+        config["restore_module"] = "turku-restore"
 
     # Validate the unit name
     if "unit_name" not in config:
@@ -220,8 +231,6 @@ def load_config(config_dir):
     # Merge in sources.d files to the sources dict
     # (.json/.yaml in /etc, .json only in /var)
     sources_directories = []
-    if os.path.isdir(var_sources_d):
-        sources_directories.append(var_sources_d)
     if os.path.isdir(sources_d):
         sources_directories.append(sources_d)
     for directory in sources_directories:
@@ -257,10 +266,12 @@ def fill_config(config):
     config_d = os.path.join(config["config_dir"], "config.d")
     sources_d = os.path.join(config["config_dir"], "sources.d")
     var_config_d = os.path.join(config["var_dir"], "config.d")
+
+    # Legacy
     var_sources_d = os.path.join(config["var_dir"], "sources.d")
 
     # Create required directories
-    for d in (config_d, sources_d, var_config_d, var_sources_d):
+    for d in (config_d, sources_d, var_config_d):
         if not os.path.isdir(d):
             os.makedirs(d)
 
@@ -286,35 +297,6 @@ def fill_config(config):
                 f,
             )
 
-    # Restoration configuration
-    write_restore_data = False
-    if "restore_path" not in config:
-        config["restore_path"] = "/var/backups/turku-agent/restore"
-        write_restore_data = True
-    if "restore_module" not in config:
-        config["restore_module"] = "turku-restore"
-        write_restore_data = True
-    if "restore_username" not in config:
-        config["restore_username"] = str(uuid.uuid4())
-        write_restore_data = True
-    if "restore_password" not in config:
-        config["restore_password"] = "".join(
-            random.choice(string.ascii_letters + string.digits) for i in range(30)
-        )
-        write_restore_data = True
-    if write_restore_data:
-        with safe_write(os.path.join(var_config_d, "10-restore.json")) as f:
-            os.fchmod(f.fileno(), 0o600)
-            restore_out = {
-                "restore_path": config["restore_path"],
-                "restore_module": config["restore_module"],
-                "restore_username": config["restore_username"],
-                "restore_password": config["restore_password"],
-            }
-            json_dump_p(restore_out, f)
-    if not os.path.isdir(config["restore_path"]):
-        os.makedirs(config["restore_path"])
-
     # Generate the SSH keypair if it doesn't exist
     if "ssh_private_key_file" not in config:
         subprocess.check_call(
@@ -336,32 +318,18 @@ def fill_config(config):
         config["ssh_private_key_file"] = os.path.join(config["var_dir"], "ssh_key")
 
     for s in config["sources"]:
-        # Check for missing usernames/passwords
-        if not (
-            "username" in config["sources"][s] or "password" in config["sources"][s]
-        ):
-            if "username" not in config["sources"][s]:
-                config["sources"][s]["username"] = str(uuid.uuid4())
-            if "password" not in config["sources"][s]:
-                config["sources"][s]["password"] = "".join(
-                    random.choice(string.ascii_letters + string.digits)
-                    for i in range(30)
-                )
-            with safe_write(os.path.join(var_sources_d, "10-" + s + ".json")) as f:
-                os.fchmod(f.fileno(), 0o600)
-                json_dump_p(
-                    {
-                        s: {
-                            "username": config["sources"][s]["username"],
-                            "password": config["sources"][s]["password"],
-                        }
-                    },
-                    f,
-                )
+        # Remove legacy per-source var username/password file
+        legacy_fn = os.path.join(var_sources_d, "10-" + s + ".json")
+        if os.path.exists(legacy_fn):
+            os.remove(legacy_fn)
 
     # Clean up obsolete files, if they exist
     for f in ("rsyncd.conf", "rsyncd.secrets"):
         fn = os.path.join(config["var_dir"], f)
+        if os.path.exists(fn):
+            os.remove(fn)
+    for f in ("10-restore.json",):
+        fn = os.path.join(var_config_d, f)
         if os.path.exists(fn):
             os.remove(fn)
 

@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 import time
 
-from .utils import load_config, RuntimeLock, api_call
+from .utils import load_config, RuntimeLock, api_call, generate_up
 
 
 def parse_args():
@@ -55,35 +55,39 @@ def call_rsyncd(config, ssh_req):
         config["rsyncd_group"],
     )
     rsyncd_secrets = []
-    rsyncd_secrets.append((config["restore_username"], config["restore_password"]))
-    built_rsyncd_conf += (
-        "[{}]\n"
-        "    path = {}\n"
-        "    auth users = {}\n"
-        "    secrets file = {}\n"
-        "    read only = false\n\n"
-    ).format(
-        config["restore_module"],
-        config["restore_path"],
-        config["restore_username"],
-        secrets_fh.name,
-    )
+    if config.get("restore_username") and config.get("restore_password"):
+        rsyncd_secrets.append((config["restore_username"], config["restore_password"]))
+        built_rsyncd_conf += (
+            "[{}]\n"
+            "    path = {}\n"
+            "    auth users = {}\n"
+            "    secrets file = {}\n"
+            "    read only = false\n\n"
+        ).format(
+            config["restore_module"],
+            config["restore_path"],
+            config["restore_username"],
+            secrets_fh.name,
+        )
     for s in config["sources"]:
+        if s not in ssh_req.get("sources", {}):
+            continue
         sd = config["sources"][s]
-        rsyncd_secrets.append((sd["username"], sd["password"]))
+        sr = ssh_req["sources"][s]
+        rsyncd_secrets.append((sr["username"], sr["password"]))
         built_rsyncd_conf += (
             "[{}]\n"
             "    path = {}\n"
             "    auth users = {}\n"
             "    secrets file = {}\n"
             "    read only = true\n\n"
-        ).format(s, sd["path"], sd["username"], secrets_fh.name)
+        ).format(s, sd["path"], sr["username"], secrets_fh.name)
     rsyncd_fh.write(built_rsyncd_conf)
     rsyncd_fh.flush()
 
     # Build rsyncd.secrets
     built_rsyncd_secrets = ""
-    for (username, password) in rsyncd_secrets:
+    for username, password in rsyncd_secrets:
         built_rsyncd_secrets += username + ":" + password + "\n"
     secrets_fh.write(built_rsyncd_secrets)
     secrets_fh.flush()
@@ -217,6 +221,9 @@ def main():
         print()
         api_reply = api_call(config["api_url"], "agent_ping_restore", api_out)
 
+        # Generare per-session restore username/password
+        (config["restore_username"], config["restore_password"]) = generate_up()
+
         sources_by_storage = {}
         for source_name in api_reply["machine"]["sources"]:
             source = api_reply["machine"]["sources"][source_name]
@@ -309,9 +316,10 @@ def main():
                 "sources": {},
             }
             for source in sources_by_storage[storage_name]:
+                u, p = generate_up()
                 ssh_req["sources"][source] = {
-                    "username": config["sources"][source]["username"],
-                    "password": config["sources"][source]["password"],
+                    "username": u,
+                    "password": p,
                 }
             rsyncd_process = call_rsyncd(config, ssh_req)
             time.sleep(3)
