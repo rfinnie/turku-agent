@@ -48,9 +48,6 @@ def send_config(config, args):
             "name": config["api_auth_name"],
             "secret": config["api_auth_secret"],
         }
-    elif "api_auth" in config:
-        # nameless secret style
-        api_out["auth"] = config["api_auth"]
 
     # Merge the following options into the machine section
     machine_merge_map = (
