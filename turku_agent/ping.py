@@ -20,9 +20,7 @@ from .utils import load_config, RuntimeLock, api_call, generate_up
 def parse_args():
     import argparse
 
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config-dir", "-c", type=str, default="/etc/turku-agent")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--wait", "-w", type=float)
@@ -44,12 +42,7 @@ def call_rsyncd(config, ssh_req):
     rsyncd_fh = tempfile.NamedTemporaryFile(mode="w+", encoding="UTF-8")
     secrets_fh = tempfile.NamedTemporaryFile(mode="w+", encoding="UTF-8")
     built_rsyncd_conf = (
-        "address = {}\n"
-        "port = {}\n"
-        "log file = /dev/stdout\n"
-        "uid = {}\n"
-        "gid = {}\n"
-        "list = false\n\n"
+        "address = {}\n" "port = {}\n" "log file = /dev/stdout\n" "uid = {}\n" "gid = {}\n" "list = false\n\n"
     ).format(
         config["rsyncd_local_address"],
         ssh_req["port"],
@@ -60,11 +53,7 @@ def call_rsyncd(config, ssh_req):
     if config.get("restore_username") and config.get("restore_password"):
         rsyncd_secrets.append((config["restore_username"], config["restore_password"]))
         built_rsyncd_conf += (
-            "[{}]\n"
-            "    path = {}\n"
-            "    auth users = {}\n"
-            "    secrets file = {}\n"
-            "    read only = false\n\n"
+            "[{}]\n" "    path = {}\n" "    auth users = {}\n" "    secrets file = {}\n" "    read only = false\n\n"
         ).format(
             config["restore_module"],
             config["restore_path"],
@@ -77,11 +66,7 @@ def call_rsyncd(config, ssh_req):
         sr = ssh_req["sources"][s]
         rsyncd_secrets.append((sr["username"], sr["password"]))
         built_rsyncd_conf += (
-            "[{}]\n"
-            "    path = {}\n"
-            "    auth users = {}\n"
-            "    secrets file = {}\n"
-            "    read only = true\n\n"
+            "[{}]\n" "    path = {}\n" "    auth users = {}\n" "    secrets file = {}\n" "    read only = true\n\n"
         ).format(s, sd["path"], sr["username"], secrets_fh.name)
     rsyncd_fh.write(built_rsyncd_conf)
     rsyncd_fh.flush()
@@ -127,9 +112,7 @@ def call_ssh(config, storage, ssh_req):
         + ["-i", config["ssh_private_key_file"]]
         + [
             "-R",
-            "{}:{}:{}".format(
-                ssh_req["port"], config["rsyncd_local_address"], ssh_req["port"]
-            ),
+            "{}:{}:{}".format(ssh_req["port"], config["rsyncd_local_address"], ssh_req["port"]),
         ]
         + ["-p", str(storage["ssh_ping_port"])]
         + ["-l", storage["ssh_ping_user"]]
@@ -178,9 +161,7 @@ def main():
     # If a go/no-go program is defined, run it and only go if it exits 0.
     # Example: prevent backups during high-load for sensitive systems:
     #   ['check_load', '-c', '1,5,15']
-    gonogo_program = (
-        args.gonogo_program if args.gonogo_program else config["gonogo_program"]
-    )
+    gonogo_program = args.gonogo_program if args.gonogo_program else config["gonogo_program"]
     if isinstance(gonogo_program, (list, tuple)):
         # List, program name first, optional arguments after
         gonogo_program_and_args = list(gonogo_program)
@@ -217,7 +198,7 @@ def main():
         api_reply = api_call(config["api_url"], "agent_ping_restore", api_out)
 
         # Generare per-session restore username/password
-        (config["restore_username"], config["restore_password"]) = generate_up()
+        config["restore_username"], config["restore_password"] = generate_up()
 
         sources_by_storage = {}
         for source_name, source in api_reply["machine"]["sources"].items():
@@ -244,14 +225,10 @@ def main():
             if args.restore_storage in sources_by_storage:
                 storage = sources_by_storage[args.restore_storage]["storage"]
             else:
-                logging.error(
-                    'Cannot find appropriate storage "{}"'.format(args.restore_storage)
-                )
+                logging.error('Cannot find appropriate storage "{}"'.format(args.restore_storage))
                 return
         else:
-            logging.error(
-                "Multiple storages found.  Please use --restore-storage to specify one."
-            )
+            logging.error("Multiple storages found.  Please use --restore-storage to specify one.")
             return
 
         ssh_req = {
@@ -270,11 +247,7 @@ def main():
         if "restore_path" in config:
             logging.info("Local destination path: {}".format(config["restore_path"]))
             logging.info("Sample restore usage from storage unit:")
-            logging.info(
-                "    cd /var/lib/turku-storage/machines/{}/".format(
-                    config["machine_uuid"]
-                )
-            )
+            logging.info("    cd /var/lib/turku-storage/machines/{}/".format(config["machine_uuid"]))
             logging.info(
                 "    RSYNC_PASSWORD={} rsync -avzP --numeric-ids ${{P?}}/ rsync://{}@127.0.0.1:{}/{}/".format(
                     config["restore_password"],

@@ -148,10 +148,7 @@ def load_config(config_dir):
         config_files = [
             os.path.join(config_d, fn)
             for fn in os.listdir(config_d)
-            if (
-                fn.endswith(".json")
-                or (fn.endswith(".yaml") and not isinstance(yaml, ImportError))
-            )
+            if (fn.endswith(".json") or (fn.endswith(".yaml") and not isinstance(yaml, ImportError)))
             and os.path.isfile(os.path.join(config_d, fn))
             and os.access(os.path.join(config_d, fn), os.R_OK)
         ]
@@ -240,14 +237,7 @@ def load_config(config_dir):
             [
                 os.path.join(directory, fn)
                 for fn in os.listdir(directory)
-                if (
-                    fn.endswith(".json")
-                    or (
-                        fn.endswith(".yaml")
-                        and directory == sources_d
-                        and not isinstance(yaml, ImportError)
-                    )
-                )
+                if (fn.endswith(".json") or (fn.endswith(".yaml") and directory == sources_d and not isinstance(yaml, ImportError)))
                 and os.path.isfile(os.path.join(directory, fn))
                 and os.access(os.path.join(directory, fn), os.R_OK)
             ]
@@ -283,9 +273,7 @@ def fill_config(config):
         config["machine_uuid"] = str(uuid.uuid4())
         write_uuid_data = True
     if "machine_secret" not in config:
-        config["machine_secret"] = "".join(
-            random.choice(string.ascii_letters + string.digits) for i in range(30)
-        )
+        config["machine_secret"] = "".join(random.choice(string.ascii_letters + string.digits) for i in range(30))
         write_uuid_data = True
     # Write out the machine UUID/secret if needed
     if write_uuid_data:
@@ -342,17 +330,9 @@ def api_call(api_url, cmd, post_data, timeout=5):
     """Turku API call client"""
     url = urllib.parse.urljoin(api_url + "/", cmd)
     headers = {"Accept": "application/json"}
-    logging.debug(
-        "API request: {} {}".format(
-            url, json.dumps(post_data, sort_keys=True, indent=4)
-        )
-    )
+    logging.debug("API request: {} {}".format(url, json.dumps(post_data, sort_keys=True, indent=4)))
     r = requests.post(url, json=post_data, headers=headers, timeout=timeout)
     r.raise_for_status()
     response_json = r.json()
-    logging.debug(
-        "API response: {} {}".format(
-            r.status_code, json.dumps(response_json, sort_keys=True, indent=4)
-        )
-    )
+    logging.debug("API response: {} {}".format(r.status_code, json.dumps(response_json, sort_keys=True, indent=4)))
     return response_json

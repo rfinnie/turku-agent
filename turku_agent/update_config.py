@@ -19,9 +19,7 @@ class IncompleteConfigError(Exception):
 def parse_args():
     import argparse
 
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config-dir", "-c", type=str, default="/etc/turku-agent")
     parser.add_argument("--wait", "-w", type=float)
     parser.add_argument("--debug", action="store_true")

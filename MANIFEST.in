@@ -1,8 +1,12 @@
+# SPDX-PackageName: turku-agent
+# SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
+# SPDX-PackageDownloadLocation: https://github.com/rfinnie/turku-agent
+# SPDX-FileCopyrightText: © 2015 Canonical Ltd.
+# SPDX-FileCopyrightText: © 2015 Ryan Finnie <ryan@finnie.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
 include Makefile
 include README.md
 include LICENSE.md
-include requirements.txt
-include tests/*.py
 include tox.ini
 include turku-agent.cron
 include turku-agent-ping

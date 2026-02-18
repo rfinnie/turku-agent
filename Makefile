@@ -1,28 +1,11 @@
-PYTHON := python3
+# SPDX-PackageName: turku-agent
+# SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
+# SPDX-PackageDownloadLocation: https://github.com/rfinnie/turku-agent
+# SPDX-FileCopyrightText: © 2015 Canonical Ltd.
+# SPDX-FileCopyrightText: © 2015 Ryan Finnie <ryan@finnie.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 SYSTEMD_SYSTEM := /etc/systemd/system
-
-all: build
-
-build:
-	$(PYTHON) setup.py build
-
-lint:
-	$(PYTHON) -mtox -e py-flake8
-
-test:
-	$(PYTHON) -mtox
-
-test-quick:
-	$(PYTHON) -mtox -e py-black,py-flake8,py-pytest-quick
-
-black-check:
-	$(PYTHON) -mtox -e py-black
-
-black:
-	$(PYTHON) -mtox -e py-black-reformat
-
-install: build
-	$(PYTHON) setup.py install
 
 install-systemd:
 	install -m 0644 turku-agent-ping.service $(SYSTEMD_SYSTEM)/turku-agent-ping.service
@@ -33,7 +16,3 @@ install-systemd:
 	install -m 0644 turku-update-config.timer $(SYSTEMD_SYSTEM)/turku-update-config.timer
 	systemctl enable turku-update-config.timer
 	systemctl start turku-update-config.timer
-
-clean:
-	$(PYTHON) setup.py clean
-	$(RM) -r build MANIFEST
